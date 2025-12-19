@@ -346,7 +346,79 @@ if generate:
 st.markdown("---")
 st.markdown("**👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫**")
 st.caption("《人工智能通识》大作业 - 智能美食推荐系统")
+# 在现有代码开头附近添加（导入部分）
+import requests
+import json
 
-# 代码行数统计
-# 总代码行数：约320行
-# 其中：界面代码80行，逻辑代码50行，菜谱数据190行
+# ==================== DeepSeek API调用函数 ====================
+def call_deepseek_api(user_message):
+    """
+    调用DeepSeek API生成智能回复
+    注意：您需要获取API Key，这里只是示例代码
+    """
+    # 这是示例URL，实际需要查看DeepSeek官方文档
+    api_url = "https://api.deepseek.com/v1/chat/completions"
+    
+    # 您需要申请的API Key（通常有免费额度）
+    api_key = "your-deepseek-api-key-here"  # 替换成您的真实API Key
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "model": "deepseek-chat",  # 或最新模型
+        "messages": [
+            {"role": "system", "content": "你是一个专业的营养师和厨师。"},
+            {"role": "user", "content": user_message}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 1000
+    }
+    
+    try:
+        response = requests.post(api_url, headers=headers, json=data, timeout=30)
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+        else:
+            return f"API调用失败: {response.status_code}"
+    except Exception as e:
+        return f"网络错误: {str(e)}"
+
+# ==================== 智能菜谱生成函数（调用API） ====================
+def generate_ai_recipe(ingredients, preferences=""):
+    """调用AI生成个性化菜谱"""
+    prompt = f"""
+    请根据以下食材生成一个详细的菜谱：
+    
+    可用食材：{', '.join(ingredients)}
+    用户偏好：{preferences}
+    
+    请按以下格式生成：
+    1. 菜名：
+    2. 类型（炒菜/炖菜/蒸菜等）：
+    3. 描述：
+    4. 食材清单（精确到克）：
+    5. 烹饪步骤（每步包含时间和具体操作）：
+    6. 替代食材建议：
+    7. 营养贴士：
+    8. 烹饪小提示：
+    
+    请使用中文，步骤详细实用。
+    """
+    
+    # 调用API
+    ai_response = call_deepseek_api(prompt)
+    return parse_ai_response(ai_response)
+
+def parse_ai_response(response_text):
+    """解析AI返回的文本为结构化数据"""
+    # 这里需要根据API返回的格式进行解析
+    # 简化示例：直接返回原始文本
+    return {
+        "name": "AI生成的菜谱",
+        "content": response_text,
+        "is_ai": True
+    }
