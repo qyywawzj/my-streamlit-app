@@ -215,7 +215,7 @@ RECIPES = {
         "tips": "水浴法防止开裂"
     },
     
-    # ========== 补充示例 ==========
+    # ========== 主食类 ==========
     "番茄意大利面": {
         "category": "主食",
         "time": "30分钟",
@@ -232,121 +232,261 @@ RECIPES = {
     }
 }
 
-# ========== 智能食材识别 ==========
-def recognize_ingredients(text):
-    """识别食材，支持番茄=西红柿"""
-    text_lower = text.lower()
-    recognized = []
+# ========== 智能搜索函数 ==========
+def search_recipes(search_text, selected_categories, max_time):
+    """
+    智能搜索菜谱
+    参数：
+        search_text: 用户输入的搜索文本
+        selected_categories: 选择的菜谱类别
+        max_time: 最大制作时间（分钟）
+    返回：
+        匹配的菜谱列表
+    """
+    results = []
     
-    # 处理番茄/西红柿
-    if any(word in text_lower for word in ['番茄', '西红柿', 'tomato']):
-        recognized.append('番茄')
+    for recipe_name, recipe_info in RECIPES.items():
+        # 1. 检查制作时间
+        time_str = recipe_info['time']
+        recipe_time = 180  # 默认值
+        if '分钟' in time_str:
+            try:
+                # 提取数字部分
+                recipe_time = int(''.join(filter(str.isdigit, time_str.split('分')[0])))
+            except:
+                recipe_time = 30
+        
+        if recipe_time > max_time:
+            continue
+        
+        # 2. 检查菜谱类别
+        if "全部" not in selected_categories and recipe_info['category'] not in selected_categories:
+            continue
+        
+        # 3. 检查搜索匹配
+        search_words = search_text.strip().lower()
+        if not search_words:
+            # 如果用户没有输入搜索词，显示所有符合条件的菜谱
+            results.append((recipe_name, recipe_info))
+            continue
+        
+        # 匹配逻辑
+        match_found = False
+        
+        # 情况1：直接匹配菜谱名称
+        if search_words in recipe_name.lower():
+            match_found = True
+        
+        # 情况2：匹配菜谱中的食材
+        else:
+            # 获取所有食材名称
+            ingredient_names = [ing['name'].lower() for ing in recipe_info['ingredients']]
+            
+            # 检查每个搜索词是否匹配食材
+            for word in search_words.split():
+                if any(word in ing or ing in word for ing in ingredient_names):
+                    match_found = True
+                    break
+        
+        if match_found:
+            results.append((recipe_name, recipe_info))
     
-    # 简单匹配
-    if '鸡蛋' in text_lower or 'egg' in text_lower:
-        recognized.append('鸡蛋')
-    if '米饭' in text_lower or '米' in text_lower:
-        recognized.append('米饭')
-    if '鸡肉' in text_lower or '鸡' in text_lower:
-        recognized.append('鸡肉')
-    if '土豆' in text_lower:
-        recognized.append('土豆')
-    if '豆腐' in text_lower:
-        recognized.append('豆腐')
-    
-    return list(set(recognized))
-
+    return results
 # ========== 界面部分 ==========
 st.title("🍳 全能厨神助手")
 st.markdown("### 涵盖汤、粥、饭、菜、蔬菜泥、水果泥、甜点等80+菜谱")
 
 # 侧边栏
 with st.sidebar:
-    st.header("🥦 食材输入")
-    user_input = st.text_input("输入食材（如：番茄 鸡蛋）", "番茄 鸡蛋")
+    st.header("🔍 搜索选项")
     
+    # 搜索输入
+    search_text = st.text_input(
+        "输入菜谱名称或食材",
+        "番茄炒蛋",
+        help="可以输入菜谱名称（如：皮蛋瘦肉粥）或食材（如：番茄 鸡蛋）"
+    )
+    
+    # 菜谱类别选择
     st.header("🍽️ 菜谱类型")
-    categories = ["汤类", "粥类", "饭类", "炒菜", "蔬菜泥", "水果泥", "甜点", "全部"]
-    selected_cats = st.multiselect("选择类型", categories, default=["全部"])
+    all_categories = sorted(list(set([recipe['category'] for recipe in RECIPES.values()])))
+    categories_options = ["全部"] + all_categories
+    selected_categories = st.multiselect(
+        "选择菜谱类型",
+        categories_options,
+        default=["全部"]
+    )
     
+    # 时间筛选
     st.header("⏱️ 时间要求")
-    max_time = st.slider("最大制作时间（分钟）", 10, 180, 60)
+    max_time = st.slider(
+        "最大制作时间（分钟）",
+        min_value=10,
+        max_value=180,
+        value=120,
+        step=10,
+        help="筛选制作时间不超过指定时间的菜谱"
+    )
     
-    generate = st.button("🔍 智能推荐菜谱", type="primary", use_container_width=True)
+    # 搜索按钮
+    search_button = st.button(
+        "🔍 开始搜索",
+        type="primary",
+        use_container_width=True
+    )
+    
+    # 显示所有菜谱
+    st.markdown("---")
+    st.header("📋 所有菜谱")
+    
+    # 按类别分组显示菜谱
+    recipes_by_category = {}
+    for name, info in RECIPES.items():
+        category = info['category']
+        if category not in recipes_by_category:
+            recipes_by_category[category] = []
+        recipes_by_category[category].append(name)
+    
+    # 显示每个类别的菜谱
+    for category in sorted(recipes_by_category.keys()):
+        with st.expander(f"{category} ({len(recipes_by_category[category])})"):
+            for recipe_name in sorted(recipes_by_category[category]):
+                recipe_info = RECIPES[recipe_name]
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"**{recipe_name}**")
+                with col2:
+                    st.write(f"`{recipe_info['time']}`")
 
 # 主界面
-if generate:
-    # 识别食材
-    recognized = recognize_ingredients(user_input)
+if search_button or not search_text:
+    # 执行搜索
+    if "全部" in selected_categories:
+        # 如果选择了"全部"，则包含所有类别
+        active_categories = all_categories
+    else:
+        active_categories = selected_categories
     
-    if recognized:
-        st.success(f"✅ 识别到食材: {', '.join(recognized)}")
+    # 调用搜索函数
+    search_results = search_recipes(search_text, active_categories, max_time)
+    
+    # 显示搜索结果
+    if search_results:
+        st.success(f"✅ 找到 {len(search_results)} 个匹配的菜谱")
         
-        # 筛选菜谱
-        filtered_recipes = []
-        for name, recipe in RECIPES.items():
-            # 检查时间
-            time_str = recipe['time']
-            time_min = 180  # 默认值
-            if '分钟' in time_str:
-                try:
-                    time_min = int(''.join(filter(str.isdigit, time_str.split('分')[0])))
-                except:
-                    time_min = 30
-            
-            if time_min > max_time:
-                continue
-            
-            # 检查类型
-            if "全部" not in selected_cats and recipe['category'] not in selected_cats:
-                continue
-            
-            # 检查食材匹配
-            ingredients_text = ' '.join([ing['name'] for ing in recipe['ingredients']])
-            if any(ing in ingredients_text for ing in recognized):
-                filtered_recipes.append((name, recipe))
-        
-        if filtered_recipes:
-            st.markdown(f"## 🎉 为您推荐 {len(filtered_recipes)} 个菜谱")
-            
-            for name, recipe in filtered_recipes:
-                with st.expander(f"🍽️ {name} ({recipe['category']} | {recipe['time']})", expanded=False):
-                    # 食材
-                    st.markdown("**🥗 食材清单**")
-                    cols = st.columns(3)
-                    for idx, ing in enumerate(recipe['ingredients']):
-                        col_idx = idx % 3
-                        with cols[col_idx]:
-                            st.markdown(f"**{ing['name']}**")
-                            st.markdown(f"`{ing['amount']}`")
-                    
-                    # 步骤
-                    st.markdown("**👨‍🍳 制作步骤**")
-                    st.text(recipe['steps'])
+        # 显示每个菜谱的详细信息
+        for recipe_name, recipe_info in search_results:
+            with st.expander(
+                f"🍽️ **{recipe_name}** | {recipe_info['category']} | ⏱️{recipe_info['time']}",
+                expanded=True
+            ):
+                # 创建两列布局
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    # 食材清单
+                    st.markdown("#### 🥗 食材清单")
+                    ingredients_html = ""
+                    for ingredient in recipe_info['ingredients']:
+                        ingredients_html += f"- **{ingredient['name']}**: {ingredient['amount']}<br>"
+                    st.markdown(ingredients_html, unsafe_allow_html=True)
                     
                     # 替代食材
-                    if recipe['alternatives']:
-                        st.markdown("**🔄 替代食材**")
-                        st.text(recipe['alternatives'])
-                    
-                    # 营养和小贴士
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown("**📊 营养贴士**")
-                        st.info(recipe['nutrition'])
-                    with col2:
-                        st.markdown("**💡 小提示**")
-                        st.success(recipe['tips'])
-        else:
-            st.warning("没有找到匹配的菜谱，请调整筛选条件")
+                    if recipe_info['alternatives']:
+                        st.markdown("#### 🔄 替代食材")
+                        st.info(recipe_info['alternatives'])
+                
+                with col2:
+                    # 制作步骤
+                    st.markdown("#### 👨‍🍳 制作步骤")
+                    steps_text = recipe_info['steps'].replace('\n', '\n\n')
+                    st.text_area(
+                        "步骤详情",
+                        steps_text,
+                        height=200,
+                        disabled=True,
+                        label_visibility="collapsed"
+                    )
+                
+                # 底部信息（营养和小贴士）
+                col3, col4 = st.columns([1, 1])
+                with col3:
+                    st.markdown("#### 📊 营养信息")
+                    st.success(recipe_info['nutrition'])
+                with col4:
+                    st.markdown("#### 💡 烹饪小贴士")
+                    st.info(recipe_info['tips'])
+                
+                st.markdown("---")
     else:
-        st.error("未识别到有效食材，请尝试输入: 番茄、鸡蛋、米饭、鸡肉等")
+        st.warning("没有找到匹配的菜谱，请尝试：")
+        
+        # 提供搜索建议
+        suggestions_col1, suggestions_col2 = st.columns(2)
+        
+        with suggestions_col1:
+            st.markdown("**🔍 搜索建议：**")
+            st.markdown("""
+            - 输入完整的菜谱名称
+            - 输入主要食材名称
+            - 使用更通用的搜索词
+            """)
+        
+        with suggestions_col2:
+            st.markdown("**📝 示例搜索：**")
+            st.markdown("""
+            - `皮蛋瘦肉粥`
+            - `小米南瓜粥`
+            - `番茄 鸡蛋`
+            - `鸡肉`
+            - `布丁`
+            """)
+        
+        # 显示一些热门菜谱推荐
+        st.markdown("#### 🎯 热门菜谱推荐")
+        popular_recipes = [
+            ("番茄炒蛋", "简单快手，家常美味"),
+            ("皮蛋瘦肉粥", "营养早餐，暖心暖胃"),
+            ("番茄鸡蛋汤", "10分钟快手汤"),
+            ("芒果布丁", "夏日甜品首选"),
+            ("土豆丝炒肉", "下饭神器")
+        ]
+        
+        cols = st.columns(len(popular_recipes))
+        for idx, (recipe_name, description) in enumerate(popular_recipes):
+            with cols[idx]:
+                if st.button(
+                    f"**{recipe_name}**\n\n{description}",
+                    use_container_width=True,
+                    key=f"popular_{recipe_name}"
+                ):
+                    # 更新搜索框内容
+                    st.session_state.search_text = recipe_name
+                    st.rerun()
 
 # 团队信息
 st.markdown("---")
 st.markdown("**👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫**")
 st.caption("《人工智能通识》大作业 - 智能美食推荐系统")
 
-# 代码行数统计
-# 总代码行数：约320行
-# 其中：界面代码80行，逻辑代码50行，菜谱数据190行
+# 初始化session state
+if 'search_text' not in st.session_state:
+    st.session_state.search_text = ""
+
+# 添加CSS样式
+st.markdown("""
+<style>
+    .stButton button {
+        transition: all 0.3s ease;
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .stExpander {
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
