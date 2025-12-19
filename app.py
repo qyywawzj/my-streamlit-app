@@ -3,9 +3,8 @@ import streamlit as st
 # ========== 页面配置 ==========
 st.set_page_config(page_title="全能厨神助手", page_icon="🍳", layout="wide")
 
-# ========== 菜谱数据库（完整80个菜谱的代表性示例） ==========
+# ========== 菜谱数据库 ==========
 RECIPES = {
-    # ========== 汤类 ==========
     "番茄鸡蛋汤": {
         "category": "汤类",
         "time": "15分钟",
@@ -36,7 +35,6 @@ RECIPES = {
         "tips": "焯水用冷水下锅"
     },
     
-    # ========== 粥类 ==========
     "皮蛋瘦肉粥": {
         "category": "粥类",
         "time": "60分钟",
@@ -66,7 +64,6 @@ RECIPES = {
         "tips": "选老南瓜更甜"
     },
     
-    # ========== 饭类 ==========
     "番茄炒饭": {
         "category": "饭类",
         "time": "20分钟",
@@ -97,7 +94,6 @@ RECIPES = {
         "tips": "泡香菇水可用来煮饭"
     },
     
-    # ========== 炒菜类 ==========
     "番茄炒蛋": {
         "category": "炒菜",
         "time": "15分钟",
@@ -128,7 +124,6 @@ RECIPES = {
         "tips": "土豆丝泡水后更脆"
     },
     
-    # ========== 蔬菜泥类 ==========
     "胡萝卜泥": {
         "category": "蔬菜泥",
         "time": "30分钟",
@@ -157,7 +152,6 @@ RECIPES = {
         "tips": "菠菜焯水去除草酸"
     },
     
-    # ========== 水果泥类 ==========
     "苹果泥": {
         "category": "水果泥",
         "time": "25分钟",
@@ -185,7 +179,6 @@ RECIPES = {
         "tips": "牛油果选熟透的"
     },
     
-    # ========== 甜点类 ==========
     "芒果布丁": {
         "category": "甜点",
         "time": "180分钟（含冷藏）",
@@ -215,7 +208,6 @@ RECIPES = {
         "tips": "水浴法防止开裂"
     },
     
-    # ========== 补充示例 ==========
     "番茄意大利面": {
         "category": "主食",
         "time": "30分钟",
@@ -253,10 +245,59 @@ def recognize_ingredients(text):
         recognized.append('土豆')
     if '豆腐' in text_lower:
         recognized.append('豆腐')
+    if '皮蛋' in text_lower:
+        recognized.append('皮蛋')
+    if '瘦肉' in text_lower or '猪肉' in text_lower:
+        recognized.append('瘦肉')
+    if '小米' in text_lower:
+        recognized.append('小米')
+    if '南瓜' in text_lower:
+        recognized.append('南瓜')
     
     return list(set(recognized))
 
-# ========== 界面部分 ==========
+# ========== 严格的菜谱搜索函数 ==========
+def search_recipes_strict(ingredients, selected_cats, max_time):
+    """严格搜索菜谱：必须包含所有输入的食材"""
+    filtered_recipes = []
+    
+    for name, recipe in RECIPES.items():
+        # 检查时间
+        time_str = recipe['time']
+        time_min = 180
+        if '分钟' in time_str:
+            try:
+                time_min = int(''.join(filter(str.isdigit, time_str.split('分')[0])))
+            except:
+                time_min = 30
+        
+        if time_min > max_time:
+            continue
+        
+        # 检查类型
+        if "全部" not in selected_cats and recipe['category'] not in selected_cats:
+            continue
+        
+        # 检查食材匹配（必须包含所有识别的食材）
+        if ingredients:
+            # 获取菜谱的所有食材名称
+            recipe_ingredients = [ing['name'] for ing in recipe['ingredients']]
+            
+            # 检查是否包含所有输入的食材
+            all_ingredients_found = True
+            for ingredient in ingredients:
+                if ingredient not in recipe_ingredients:
+                    all_ingredients_found = False
+                    break
+            
+            if all_ingredients_found:
+                filtered_recipes.append((name, recipe))
+        else:
+            # 如果没有输入食材，显示所有符合条件的菜谱
+            filtered_recipes.append((name, recipe))
+    
+    return filtered_recipes
+    # ========== 界面部分 ==========
 st.title("🍳 全能厨神助手")
 st.markdown("### 涵盖汤、粥、饭、菜、蔬菜泥、水果泥、甜点等80+菜谱")
 
@@ -266,7 +307,7 @@ with st.sidebar:
     user_input = st.text_input("输入食材（如：番茄 鸡蛋）", "番茄 鸡蛋")
     
     st.header("🍽️ 菜谱类型")
-    categories = ["汤类", "粥类", "饭类", "炒菜", "蔬菜泥", "水果泥", "甜点", "全部"]
+    categories = ["汤类", "粥类", "饭类", "炒菜", "蔬菜泥", "水果泥", "甜点", "主食", "全部"]
     selected_cats = st.multiselect("选择类型", categories, default=["全部"])
     
     st.header("⏱️ 时间要求")
@@ -282,52 +323,35 @@ if generate:
     if recognized:
         st.success(f"✅ 识别到食材: {', '.join(recognized)}")
         
-        # 筛选菜谱
-        filtered_recipes = []
-        for name, recipe in RECIPES.items():
-            # 检查时间
-            time_str = recipe['time']
-            time_min = 180  # 默认值
-            if '分钟' in time_str:
-                try:
-                    time_min = int(''.join(filter(str.isdigit, time_str.split('分')[0])))
-                except:
-                    time_min = 30
-            
-            if time_min > max_time:
-                continue
-            
-            # 检查类型
-            if "全部" not in selected_cats and recipe['category'] not in selected_cats:
-                continue
-            
-            # 检查食材匹配
-            ingredients_text = ' '.join([ing['name'] for ing in recipe['ingredients']])
-            if any(ing in ingredients_text for ing in recognized):
-                filtered_recipes.append((name, recipe))
+        # 使用严格搜索：必须包含所有输入的食材
+        filtered_recipes = search_recipes_strict(recognized, selected_cats, max_time)
         
         if filtered_recipes:
             st.markdown(f"## 🎉 为您推荐 {len(filtered_recipes)} 个菜谱")
             
             for name, recipe in filtered_recipes:
-                with st.expander(f"🍽️ {name} ({recipe['category']} | {recipe['time']})", expanded=False):
+                with st.expander(f"🍽️ {name} ({recipe['category']} | {recipe['time']})", expanded=True):
                     # 食材
                     st.markdown("**🥗 食材清单**")
+                    
+                    # 使用3列布局显示食材
                     cols = st.columns(3)
                     for idx, ing in enumerate(recipe['ingredients']):
                         col_idx = idx % 3
                         with cols[col_idx]:
                             st.markdown(f"**{ing['name']}**")
-                            st.markdown(f"`{ing['amount']}`")
+                            st.write(f"{ing['amount']}")
                     
                     # 步骤
                     st.markdown("**👨‍🍳 制作步骤**")
-                    st.text(recipe['steps'])
+                    steps_lines = recipe['steps'].split('\n')
+                    for step in steps_lines:
+                        st.write(step)
                     
                     # 替代食材
                     if recipe['alternatives']:
                         st.markdown("**🔄 替代食材**")
-                        st.text(recipe['alternatives'])
+                        st.info(recipe['alternatives'])
                     
                     # 营养和小贴士
                     col1, col2 = st.columns(2)
@@ -338,15 +362,59 @@ if generate:
                         st.markdown("**💡 小提示**")
                         st.success(recipe['tips'])
         else:
-            st.warning("没有找到匹配的菜谱，请调整筛选条件")
+            st.warning("没有找到完全匹配的菜谱，请尝试：")
+            st.write("1. 检查食材是否输入正确")
+            st.write("2. 放宽时间限制")
+            st.write("3. 选择更多菜谱类型")
+            
+            # 显示可能相关的菜谱（部分匹配）
+            st.markdown("#### 🔍 相关菜谱推荐")
+            partial_recipes = []
+            for name, recipe in RECIPES.items():
+                recipe_ingredients = [ing['name'] for ing in recipe['ingredients']]
+                # 检查是否有部分食材匹配
+                matched_ingredients = [ing for ing in recognized if ing in recipe_ingredients]
+                if matched_ingredients:
+                    partial_recipes.append((name, recipe, len(matched_ingredients)))
+            
+            # 按匹配度排序
+            partial_recipes.sort(key=lambda x: x[2], reverse=True)
+            
+            for name, recipe, match_count in partial_recipes[:3]:  # 只显示前3个
+                st.write(f"• **{name}** - 匹配{match_count}种食材")
     else:
-        st.error("未识别到有效食材，请尝试输入: 番茄、鸡蛋、米饭、鸡肉等")
+        st.error("未识别到有效食材，请尝试输入: 番茄、鸡蛋、米饭、鸡肉、皮蛋、小米等")
+
+# 默认显示
+else:
+    st.info("👈 请在左侧输入食材并点击「智能推荐菜谱」按钮")
 
 # 团队信息
 st.markdown("---")
 st.markdown("**👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫**")
 st.caption("《人工智能通识》大作业 - 智能美食推荐系统")
 
-# 代码行数统计
-# 总代码行数：约320行
-# 其中：界面代码80行，逻辑代码50行，菜谱数据190行
+# 添加一些CSS样式
+st.markdown("""
+<style>
+    .stButton > button {
+        width: 100%;
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+    }
+    .stButton > button:hover {
+        background-color: #45a049;
+    }
+    .stSuccess {
+        background-color: #d4edda;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    .stWarning {
+        background-color: #fff3cd;
+        padding: 10px;
+        border-radius: 5px;
+    }
+</style>
+""", unsafe_allow_html=True)
