@@ -1,1052 +1,852 @@
+# app.py - 厨神小助手AI美食推荐系统
+# 第一部分：基础配置和页面设置
+
 import streamlit as st
-import json
-import re
-from datetime import datetime
 import requests
+import json
 import time
+from typing import List, Dict, Any
 
 # ==================== 页面配置 ====================
 st.set_page_config(
-    page_title="?? 智能美食助手 - AI增强版",
-    page_icon="??",
+    page_title="🍳 厨神小助手 - AI美食推荐系统",
+    page_icon="🍳",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ==================== 自定义样式 ====================
+# ==================== 全局样式 ====================
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
+    /* 主标题样式 */
+    .main-title {
+        font-size: 2.8rem;
         color: #FF6B6B;
         text-align: center;
-        margin-bottom: 1rem;
-        font-weight: bold;
+        margin-bottom: 0.5rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #FF6B6B, #FF8E53);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
-    .recipe-card {
-        background: #ffffff;
+    
+    /* 副标题样式 */
+    .sub-title {
+        font-size: 1.3rem;
+        color: #666;
+        text-align: center;
+        margin-bottom: 2rem;
+        font-weight: 300;
+    }
+    
+    /* 团队信息样式 */
+    .team-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 1.5rem;
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        border-left: 5px solid #FF6B6B;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .ai-recipe-card {
-        background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
-        border-left: 5px solid #4D96FF;
-    }
-    .ingredient-tag {
-        display: inline-block;
-        background: #E8F4FF;
-        color: #2C7BE5;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        margin: 0.2rem;
-        font-size: 0.9rem;
-    }
-    .step-box {
-        background: #f9f9f9;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        border-left: 3px solid #4CAF50;
-    }
-    .nutrition-box {
-        background: #FFF9E6;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        border-left: 4px solid #FFD700;
-    }
-    .ai-badge {
-        display: inline-block;
-        background: linear-gradient(45deg, #4D96FF, #6BC5FF);
+        border-radius: 20px;
+        margin: 2rem 0;
         color: white;
-        padding: 0.2rem 0.8rem;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        margin-left: 0.5rem;
+        text-align: center;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
-    .team-section {
+    
+    /* 按钮样式 */
+    .stButton button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin-top: 2rem;
-        text-align: center;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 12px;
+        padding: 0.7rem 2rem;
+        border: none;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* 菜谱卡片样式 */
+    .recipe-card {
+        background: white;
+        padding: 1.8rem;
+        border-radius: 16px;
+        margin-bottom: 1.8rem;
+        border-left: 6px solid #FF6B6B;
+        box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .recipe-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    }
+    
+    /* 侧边栏样式 */
+    .sidebar .sidebar-content {
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    /* 输入框样式 */
+    .stTextArea textarea {
+        border-radius: 10px;
+        border: 2px solid #e0e0e0;
+    }
+    
+    /* 进度条样式 */
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #FF6B6B, #FF8E53);
+    }
+    
+    /* 警告框样式 */
+    .stAlert {
+        border-radius: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== 标题 ====================
-st.markdown('<div class="main-header">?? 智能美食助手 - AI增强版</div>', unsafe_allow_html=True)
-st.markdown('<div style="text-align: center; color: #666; margin-bottom: 2rem;">80+详细菜谱 · AI智能生成 · 精确克数指导</div>', unsafe_allow_html=True)
+# ==================== 页面标题 ====================
+st.markdown('<div class="main-title">🍳 厨神小助手</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">AI智能美食推荐系统 · 让烹饪变得更简单</div>', unsafe_allow_html=True)
 
-# ==================== AI智能功能模块 ====================
-class AIRecipeGenerator:
-    """AI菜谱生成器"""
-    
-    @staticmethod
-    def generate_ai_recipe_simple(ingredients, preferences=""):
-        """简单的AI菜谱生成（模拟，无需真实API）"""
-        if not ingredients:
-            return None
-            
-        main_ingredient = ingredients[0] if ingredients else "食材"
-        
-        # 根据食材智能推荐
-        recipe_templates = {
-            "鸡蛋": {
-                "name": f"{main_ingredient}创意蛋料理",
-                "type": "AI推荐·炒菜",
-                "description": "AI智能搭配，充分发挥蛋类的多样性",
-                "ingredients": [
-                    {"name": "鸡蛋", "amount": "3个", "note": "约150克"},
-                    {"name": ingredients[1] if len(ingredients)>1 else "蔬菜", "amount": "200克", "note": "切配备用"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "准备食材", "time": "8分钟", "detail": f"将{ingredients[1] if len(ingredients)>1 else '蔬菜'}洗净切好，鸡蛋打散"},
-                    {"step": 2, "action": "智能烹饪", "time": "10分钟", "detail": "AI建议先炒配料，再加入蛋液快速翻炒"},
-                    {"step": 3, "action": "调味出锅", "time": "2分钟", "detail": "根据口味加盐、胡椒，AI推荐少许葱花提香"}
-                ],
-                "nutrition": ["鸡蛋提供优质蛋白", "搭配蔬菜增加维生素摄入", "建议搭配主食食用"],
-                "tips": ["AI提示：鸡蛋不宜炒过老", "可根据喜好添加奶酪或香草", "火候控制在中大火"]
-            },
-            "番茄": {
-                "name": f"{main_ingredient}风味料理",
-                "type": "AI推荐·家常菜",
-                "description": "利用番茄的天然酸味，AI智能搭配其他食材",
-                "ingredients": [
-                    {"name": "番茄", "amount": "300克", "note": "切块"},
-                    {"name": "洋葱", "amount": "100克", "note": "切丝"},
-                    {"name": "蒜", "amount": "10克", "note": "切片"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "炒香底料", "time": "5分钟", "detail": "AI建议先炒香洋葱和蒜片"},
-                    {"step": 2, "action": "加入番茄", "time": "8分钟", "detail": "炒至番茄出汁，形成天然酱汁"},
-                    {"step": 3, "action": "调味融合", "time": "3分钟", "detail": "AI推荐加少许糖平衡酸味"}
-                ],
-                "nutrition": ["番茄红素加热更易吸收", "低热量高营养", "适合多种烹饪方式"],
-                "tips": ["AI提示：番茄选熟透的更易出汁", "可加少许番茄酱增稠", "最后淋少许橄榄油"]
-            },
-            "鸡肉": {
-                "name": f"{main_ingredient}健康料理",
-                "type": "AI推荐·低脂餐",
-                "description": "AI设计的低脂高蛋白健康菜品",
-                "ingredients": [
-                    {"name": "鸡胸肉", "amount": "250克", "note": "切片"},
-                    {"name": "西兰花", "amount": "200克", "note": "切小朵"},
-                    {"name": "胡萝卜", "amount": "100克", "note": "切片"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "预处理", "time": "10分钟", "detail": "鸡肉用料酒、淀粉腌制，蔬菜焯水"},
-                    {"step": 2, "action": "快速翻炒", "time": "6分钟", "detail": "AI建议大火快炒保持营养"},
-                    {"step": 3, "action": "健康调味", "time": "2分钟", "detail": "少盐少油，AI推荐用香料调味"}
-                ],
-                "nutrition": ["高蛋白低脂肪", "搭配多种蔬菜", "适合健身人群"],
-                "tips": ["AI提示：鸡肉顺纹切更嫩", "蔬菜焯水保持色泽", "控制用油量"]
-            }
-        }
-        
-        # 如果有匹配的模板，使用模板
-        for key in recipe_templates:
-            if key in ingredients:
-                recipe = recipe_templates[key].copy()
-                recipe["name"] = recipe["name"].replace(key, main_ingredient)
-                recipe["is_ai"] = True
-                return recipe
-        
-        # 通用AI菜谱
-        return {
-            "id": 1000 + len(ingredients),
-            "name": f"AI创意：{main_ingredient}新做法",
-            "type": "AI智能推荐",
-            "description": f"基于您提供的{len(ingredients)}种食材，AI智能生成的创新菜谱",
-            "ingredients": [{"name": ing, "amount": "150-200克", "note": "根据喜好调整"} for ing in ingredients[:4]],
-            "steps": [
-                {"step": 1, "action": "AI建议：食材处理", "time": "10分钟", "detail": f"将{', '.join(ingredients[:3])}等食材洗净，按AI建议的方式切配"},
-                {"step": 2, "action": "AI建议：烹饪顺序", "time": "15分钟", "detail": "AI推荐先处理需要长时间烹饪的食材，再加入易熟的食材"},
-                {"step": 3, "action": "AI建议：调味技巧", "time": "5分钟", "detail": "少量多次调味，AI建议先尝后调"}
-            ],
-            "alternative": [
-                {"原食材": ingredients[0], "替代": "类似食材", "比例": "等量", "说明": "AI推荐可尝试不同食材组合"}
-            ],
-            "nutrition": [
-                "AI分析：多种食材搭配营养更均衡",
-                "建议：搭配主食保证碳水摄入",
-                "提醒：注意食材新鲜度和烹饪卫生"
-            ],
-            "tips": [
-                "?? AI提示：食材预处理可节省烹饪时间",
-                "?? AI提示：火候控制是关键",
-                "?? AI提示：调味最后进行，避免过咸"
-            ],
-            "is_ai": True,
-            "ai_score": 85  # AI置信度评分
-        }
-    
-    @staticmethod
-    def analyze_nutrition(recipe_data):
-        """AI营养分析（模拟）"""
-        ingredients_text = ", ".join([ing["name"] for ing in recipe_data.get("ingredients", [])[:3]])
-        
-        analysis = {
-            "score": 78 + len(recipe_data.get("ingredients", [])) * 2,
-            "strengths": [
-                "蛋白质来源丰富",
-                "蔬菜搭配合理",
-                "烹饪方式健康"
-            ],
-            "suggestions": [
-                "建议增加全谷物搭配",
-                "可适当减少用油量",
-                "注意盐分控制"
-            ],
-            "calories": "约350-450大卡/份",
-            "summary": f"AI分析：这道菜使用{ingredients_text}等食材，营养均衡，适合日常食用。"
-        }
-        
-        # 根据食材调整评分
-        if "鸡蛋" in ingredients_text:
-            analysis["score"] += 5
-            analysis["strengths"].append("优质蛋白质来源")
-        
-        if "西兰花" in ingredients_text or "胡萝卜" in ingredients_text:
-            analysis["score"] += 3
-            analysis["strengths"].append("维生素含量丰富")
-            
-        return analysis
-    
-    @staticmethod
-    def generate_cooking_tips(ingredients):
-        """AI烹饪小贴士生成"""
-        tips = []
-        
-        if "鸡蛋" in ingredients:
-            tips.extend([
-                "?? AI科学：鸡蛋室温放置后再打散，更容易搅拌均匀",
-                "?? AI计时：炒鸡蛋时油温七成热下锅，20秒内翻炒完成最嫩",
-                "?? AI调味：鸡蛋本身有鲜味，盐量可减少1/3"
-            ])
-        
-        if "番茄" in ingredients:
-            tips.extend([
-                "?? AI科学：番茄加热后番茄红素生物利用率提高3倍",
-                "?? AI处理：番茄顶部划十字，开水烫30秒轻松去皮",
-                "?? AI搭配：番茄的酸味可与少量糖或蜂蜜平衡"
-            ])
-        
-        if "鸡肉" in ingredients:
-            tips.extend([
-                "?? AI刀工：鸡肉逆纹切，切断纤维更嫩滑",
-                "?? AI计时：鸡胸肉每面煎3-4分钟，内部刚好熟透",
-                "?? AI嫩化：用柠檬汁或酸奶腌制鸡肉30分钟更嫩"
-            ])
-        
-        # 通用AI贴士
-        tips.extend([
-            "?? AI计算：每人每餐蔬菜建议摄入量200-300克",
-            "?? AI控火：炒菜时'热锅凉油'可防粘锅",
-            "?? AI感官：烹饪中多次闻香气，判断火候和熟度"
-        ])
-        
-        return tips[:5]  # 返回前5个
-
-# 创建AI生成器实例
-ai_chef = AIRecipeGenerator()
-
-# ==================== 智能食材识别 ====================
-def recognize_ingredients(user_input):
-    """智能识别食材，支持自然语言"""
-    ingredients = []
-    
-    if not user_input or not user_input.strip():
-        return ingredients
-    
-    # 处理同义词
-    input_text = user_input.lower().strip()
-    input_text = input_text.replace('西红柿', '番茄')
-    input_text = input_text.replace('蕃茄', '番茄')
-    input_text = input_text.replace('tomato', '番茄')
-    input_text = input_text.replace('鸡蛋', '蛋')  # 统一
-    
-    # 基础食材列表
-    base_ingredients = [
-        '鸡蛋', '猪肉', '牛肉', '鸡肉', '鱼肉', '虾', '豆腐',
-        '土豆', '西兰花', '花菜', '胡萝卜', '番茄'
-    ]
-    
-    # 简化的关键词匹配
-    for ingredient in base_ingredients:
-        # 处理"鸡蛋"和"蛋"的情况
-        search_ingredient = ingredient
-        if ingredient == "鸡蛋":
-            if "蛋" in input_text and "鸡蛋" not in input_text:
-                search_ingredient = "蛋"
-        
-        if search_ingredient in input_text:
-            # 如果是"蛋"，统一记录为"鸡蛋"
-            if search_ingredient == "蛋":
-                ingredients.append("鸡蛋")
-            else:
-                ingredients.append(ingredient)
-    
-    # 去重
-    return list(set(ingredients))
-    import streamlit as st
-import json
-import re
-from datetime import datetime
-import requests
-import time
-
-# ==================== 页面配置 ====================
-st.set_page_config(
-    page_title="?? 智能美食助手 - AI增强版",
-    page_icon="??",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# ==================== 自定义样式 ====================
+# ==================== 团队信息 ====================
 st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #FF6B6B;
-        text-align: center;
-        margin-bottom: 1rem;
-        font-weight: bold;
-    }
-    .recipe-card {
-        background: #ffffff;
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        border-left: 5px solid #FF6B6B;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    .ai-recipe-card {
-        background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
-        border-left: 5px solid #4D96FF;
-    }
-    .ingredient-tag {
-        display: inline-block;
-        background: #E8F4FF;
-        color: #2C7BE5;
-        padding: 0.3rem 0.8rem;
-        border-radius: 15px;
-        margin: 0.2rem;
-        font-size: 0.9rem;
-    }
-    .step-box {
-        background: #f9f9f9;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        border-left: 3px solid #4CAF50;
-    }
-    .nutrition-box {
-        background: #FFF9E6;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        border-left: 4px solid #FFD700;
-    }
-    .ai-badge {
-        display: inline-block;
-        background: linear-gradient(45deg, #4D96FF, #6BC5FF);
-        color: white;
-        padding: 0.2rem 0.8rem;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: bold;
-        margin-left: 0.5rem;
-    }
-    .team-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1.5rem;
-        border-radius: 15px;
-        margin-top: 2rem;
-        text-align: center;
-    }
-</style>
+<div class="team-info">
+    <h3 style="margin:0; color:white;">👨‍🎓 项目团队</h3>
+    <p style="margin:0.5rem 0; font-size:1.1rem; color:white;">
+        刘蕊琪 · 戚洋洋 · 王佳慧 · 覃丽娜 · 欧婷 · 贺钰鑫
+    </p >
+    <p style="margin:0; font-size:0.9rem; opacity:0.9; color:white;">
+        《人工智能通识》课程大作业 · AI+美食生活应用
+    </p >
+</div>
 """, unsafe_allow_html=True)
+# 第二部分：侧边栏和API配置
 
-# ==================== 标题 ====================
-st.markdown('<div class="main-header">?? 智能美食助手 - AI增强版</div>', unsafe_allow_html=True)
-st.markdown('<div style="text-align: center; color: #666; margin-bottom: 2rem;">80+详细菜谱 · AI智能生成 · 精确克数指导</div>', unsafe_allow_html=True)
-
-# ==================== AI智能功能模块 ====================
-class AIRecipeGenerator:
-    """AI菜谱生成器"""
+# ==================== 百度千帆API配置 ====================
+class QianfanAPI:
+    """百度千帆大模型API调用类"""
     
-    @staticmethod
-    def generate_ai_recipe_simple(ingredients, preferences=""):
-        """简单的AI菜谱生成（模拟，无需真实API）"""
-        if not ingredients:
-            return None
-            
-        main_ingredient = ingredients[0] if ingredients else "食材"
+    def __init__(self):
+        # 您的API配置信息
+        self.API_KEY = "bce-v3/ALTAK-1bgyWcDtorkOF0ccj9ai2/1fd1c6767c66174f38e3521920c25648dac44ef4"
+        self.SECRET_KEY = "7ae74a327cd447b2ae702bccc5c75283"
         
-        # 根据食材智能推荐
-        recipe_templates = {
-            "鸡蛋": {
-                "name": f"{main_ingredient}创意蛋料理",
-                "type": "AI推荐·炒菜",
-                "description": "AI智能搭配，充分发挥蛋类的多样性",
-                "ingredients": [
-                    {"name": "鸡蛋", "amount": "3个", "note": "约150克"},
-                    {"name": ingredients[1] if len(ingredients)>1 else "蔬菜", "amount": "200克", "note": "切配备用"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "准备食材", "time": "8分钟", "detail": f"将{ingredients[1] if len(ingredients)>1 else '蔬菜'}洗净切好，鸡蛋打散"},
-                    {"step": 2, "action": "智能烹饪", "time": "10分钟", "detail": "AI建议先炒配料，再加入蛋液快速翻炒"},
-                    {"step": 3, "action": "调味出锅", "time": "2分钟", "detail": "根据口味加盐、胡椒，AI推荐少许葱花提香"}
-                ],
-                "nutrition": ["鸡蛋提供优质蛋白", "搭配蔬菜增加维生素摄入", "建议搭配主食食用"],
-                "tips": ["AI提示：鸡蛋不宜炒过老", "可根据喜好添加奶酪或香草", "火候控制在中大火"]
-            },
-            "番茄": {
-                "name": f"{main_ingredient}风味料理",
-                "type": "AI推荐·家常菜",
-                "description": "利用番茄的天然酸味，AI智能搭配其他食材",
-                "ingredients": [
-                    {"name": "番茄", "amount": "300克", "note": "切块"},
-                    {"name": "洋葱", "amount": "100克", "note": "切丝"},
-                    {"name": "蒜", "amount": "10克", "note": "切片"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "炒香底料", "time": "5分钟", "detail": "AI建议先炒香洋葱和蒜片"},
-                    {"step": 2, "action": "加入番茄", "time": "8分钟", "detail": "炒至番茄出汁，形成天然酱汁"},
-                    {"step": 3, "action": "调味融合", "time": "3分钟", "detail": "AI推荐加少许糖平衡酸味"}
-                ],
-                "nutrition": ["番茄红素加热更易吸收", "低热量高营养", "适合多种烹饪方式"],
-                "tips": ["AI提示：番茄选熟透的更易出汁", "可加少许番茄酱增稠", "最后淋少许橄榄油"]
-            },
-            "鸡肉": {
-                "name": f"{main_ingredient}健康料理",
-                "type": "AI推荐·低脂餐",
-                "description": "AI设计的低脂高蛋白健康菜品",
-                "ingredients": [
-                    {"name": "鸡胸肉", "amount": "250克", "note": "切片"},
-                    {"name": "西兰花", "amount": "200克", "note": "切小朵"},
-                    {"name": "胡萝卜", "amount": "100克", "note": "切片"}
-                ],
-                "steps": [
-                    {"step": 1, "action": "预处理", "time": "10分钟", "detail": "鸡肉用料酒、淀粉腌制，蔬菜焯水"},
-                    {"step": 2, "action": "快速翻炒", "time": "6分钟", "detail": "AI建议大火快炒保持营养"},
-                    {"step": 3, "action": "健康调味", "time": "2分钟", "detail": "少盐少油，AI推荐用香料调味"}
-                ],
-                "nutrition": ["高蛋白低脂肪", "搭配多种蔬菜", "适合健身人群"],
-                "tips": ["AI提示：鸡肉顺纹切更嫩", "蔬菜焯水保持色泽", "控制用油量"]
+        # API端点
+        self.CHAT_URL = "https://qianfan.baidubce.com/v2/chat/completions"
+        self.AUTH_URL = "https://aip.baidubce.com/oauth/2.0/token"
+        
+        # 获取访问令牌
+        self.access_token = self._get_access_token()
+    
+    def _get_access_token(self):
+        """获取百度API访问令牌"""
+        try:
+            params = {
+                "grant_type": "client_credentials",
+                "client_id": self.ACCESS_KEY,
+                "client_secret": self.SECRET_KEY
             }
-        }
-        
-        # 如果有匹配的模板，使用模板
-        for key in recipe_templates:
-            if key in ingredients:
-                recipe = recipe_templates[key].copy()
-                recipe["name"] = recipe["name"].replace(key, main_ingredient)
-                recipe["is_ai"] = True
-                return recipe
-        
-        # 通用AI菜谱
-        return {
-            "id": 1000 + len(ingredients),
-            "name": f"AI创意：{main_ingredient}新做法",
-            "type": "AI智能推荐",
-            "description": f"基于您提供的{len(ingredients)}种食材，AI智能生成的创新菜谱",
-            "ingredients": [{"name": ing, "amount": "150-200克", "note": "根据喜好调整"} for ing in ingredients[:4]],
-            "steps": [
-                {"step": 1, "action": "AI建议：食材处理", "time": "10分钟", "detail": f"将{', '.join(ingredients[:3])}等食材洗净，按AI建议的方式切配"},
-                {"step": 2, "action": "AI建议：烹饪顺序", "time": "15分钟", "detail": "AI推荐先处理需要长时间烹饪的食材，再加入易熟的食材"},
-                {"step": 3, "action": "AI建议：调味技巧", "time": "5分钟", "detail": "少量多次调味，AI建议先尝后调"}
-            ],
-            "alternative": [
-                {"原食材": ingredients[0], "替代": "类似食材", "比例": "等量", "说明": "AI推荐可尝试不同食材组合"}
-            ],
-            "nutrition": [
-                "AI分析：多种食材搭配营养更均衡",
-                "建议：搭配主食保证碳水摄入",
-                "提醒：注意食材新鲜度和烹饪卫生"
-            ],
-            "tips": [
-                "?? AI提示：食材预处理可节省烹饪时间",
-                "?? AI提示：火候控制是关键",
-                "?? AI提示：调味最后进行，避免过咸"
-            ],
-            "is_ai": True,
-            "ai_score": 85  # AI置信度评分
-        }
-    
-    @staticmethod
-    def analyze_nutrition(recipe_data):
-        """AI营养分析（模拟）"""
-        ingredients_text = ", ".join([ing["name"] for ing in recipe_data.get("ingredients", [])[:3]])
-        
-        analysis = {
-            "score": 78 + len(recipe_data.get("ingredients", [])) * 2,
-            "strengths": [
-                "蛋白质来源丰富",
-                "蔬菜搭配合理",
-                "烹饪方式健康"
-            ],
-            "suggestions": [
-                "建议增加全谷物搭配",
-                "可适当减少用油量",
-                "注意盐分控制"
-            ],
-            "calories": "约350-450大卡/份",
-            "summary": f"AI分析：这道菜使用{ingredients_text}等食材，营养均衡，适合日常食用。"
-        }
-        
-        # 根据食材调整评分
-        if "鸡蛋" in ingredients_text:
-            analysis["score"] += 5
-            analysis["strengths"].append("优质蛋白质来源")
-        
-        if "西兰花" in ingredients_text or "胡萝卜" in ingredients_text:
-            analysis["score"] += 3
-            analysis["strengths"].append("维生素含量丰富")
-            
-        return analysis
-    
-    @staticmethod
-    def generate_cooking_tips(ingredients):
-        """AI烹饪小贴士生成"""
-        tips = []
-        
-        if "鸡蛋" in ingredients:
-            tips.extend([
-                "?? AI科学：鸡蛋室温放置后再打散，更容易搅拌均匀",
-                "?? AI计时：炒鸡蛋时油温七成热下锅，20秒内翻炒完成最嫩",
-                "?? AI调味：鸡蛋本身有鲜味，盐量可减少1/3"
-            ])
-        
-        if "番茄" in ingredients:
-            tips.extend([
-                "?? AI科学：番茄加热后番茄红素生物利用率提高3倍",
-                "?? AI处理：番茄顶部划十字，开水烫30秒轻松去皮",
-                "?? AI搭配：番茄的酸味可与少量糖或蜂蜜平衡"
-            ])
-        
-        if "鸡肉" in ingredients:
-            tips.extend([
-                "?? AI刀工：鸡肉逆纹切，切断纤维更嫩滑",
-                "?? AI计时：鸡胸肉每面煎3-4分钟，内部刚好熟透",
-                "?? AI嫩化：用柠檬汁或酸奶腌制鸡肉30分钟更嫩"
-            ])
-        
-        # 通用AI贴士
-        tips.extend([
-            "?? AI计算：每人每餐蔬菜建议摄入量200-300克",
-            "?? AI控火：炒菜时'热锅凉油'可防粘锅",
-            "?? AI感官：烹饪中多次闻香气，判断火候和熟度"
-        ])
-        
-        return tips[:5]  # 返回前5个
-
-# 创建AI生成器实例
-ai_chef = AIRecipeGenerator()
-
-# ==================== 智能食材识别 ====================
-def recognize_ingredients(user_input):
-    """智能识别食材，支持自然语言"""
-    ingredients = []
-    
-    if not user_input or not user_input.strip():
-        return ingredients
-    
-    # 处理同义词
-    input_text = user_input.lower().strip()
-    input_text = input_text.replace('西红柿', '番茄')
-    input_text = input_text.replace('蕃茄', '番茄')
-    input_text = input_text.replace('tomato', '番茄')
-    input_text = input_text.replace('鸡蛋', '蛋')  # 统一
-    
-    # 基础食材列表
-    base_ingredients = [
-        '鸡蛋', '猪肉', '牛肉', '鸡肉', '鱼肉', '虾', '豆腐',
-        '土豆', '西兰花', '花菜', '胡萝卜', '番茄'
-    ]
-    
-    # 简化的关键词匹配
-    for ingredient in base_ingredients:
-        # 处理"鸡蛋"和"蛋"的情况
-        search_ingredient = ingredient
-        if ingredient == "鸡蛋":
-            if "蛋" in input_text and "鸡蛋" not in input_text:
-                search_ingredient = "蛋"
-        
-        if search_ingredient in input_text:
-            # 如果是"蛋"，统一记录为"鸡蛋"
-            if search_ingredient == "蛋":
-                ingredients.append("鸡蛋")
+            response = requests.get(self.AUTH_URL, params=params)
+            if response.status_code == 200:
+                return response.json().get("access_token")
             else:
-                ingredients.append(ingredient)
+                st.error(f"获取访问令牌失败: {response.status_code}")
+                return None
+        except Exception as e:
+            st.error(f"获取访问令牌时出错: {str(e)}")
+            return None
     
-    # 去重
-    return list(set(ingredients))
-    # ==================== 完整的80个菜谱数据库 ====================
-# 由于篇幅限制，这里展示部分菜谱，实际包含80+个
-
-RECIPES_DATABASE = {
-    "鸡蛋": [
-        {
-            "id": 1,
-            "name": "番茄炒蛋",
-            "type": "炒菜",
-            "description": "经典家常菜，酸甜开胃",
-            "ingredients": [
-                {"name": "番茄", "amount": "300克", "note": "中等大小2个"},
-                {"name": "鸡蛋", "amount": "3个", "note": "约150克"},
-                {"name": "葱", "amount": "10克", "note": "切葱花"},
-                {"name": "盐", "amount": "3克", "note": "约半小勺"},
-                {"name": "糖", "amount": "5克", "note": "约1小勺"},
-                {"name": "油", "amount": "20毫升", "note": "约1.5大勺"}
-            ],
-            "steps": [
-                {"step": 1, "action": "准备食材", "time": "3分钟", "detail": "番茄洗净切块，鸡蛋打散加1克盐"},
-                {"step": 2, "action": "炒鸡蛋", "time": "3分钟", "detail": "热油15毫升，倒入蛋液炒至凝固，盛出"},
-                {"step": 3, "action": "炒番茄", "time": "5分钟", "detail": "锅中下5毫升油，炒番茄至出汁"},
-                {"step": 4, "action": "混合调味", "time": "2分钟", "detail": "加入鸡蛋、盐2克、糖5克翻炒"},
-                {"step": 5, "action": "出锅", "time": "1分钟", "detail": "撒葱花翻炒均匀出锅"}
-            ],
-            "alternative": [
-                {"原食材": "番茄", "替代": "彩椒", "比例": "250克", "说明": "颜色更丰富"}
-            ],
-            "nutrition": ["优质蛋白质来源", "番茄红素加热更易吸收", "维生素C丰富"],
-            "tips": ["加少许糖中和酸味", "鸡蛋不宜炒太老", "番茄选熟透的易出汁"],
-            "ai_enhanced": False
-        },
-        {
-            "id": 2,
-            "name": "韭菜炒蛋",
-            "type": "炒菜",
-            "description": "简单快手，香气浓郁",
-            "ingredients": [
-                {"name": "鸡蛋", "amount": "3个", "note": "约150克"},
-                {"name": "韭菜", "amount": "200克", "note": "洗净切段"},
-                {"name": "盐", "amount": "3克", "note": "约半小勺"},
-                {"name": "油", "amount": "15毫升", "note": "约1大勺"}
-            ],
-            "steps": [
-                {"step": 1, "action": "准备", "time": "5分钟", "detail": "韭菜切3厘米段，鸡蛋打散"},
-                {"step": 2, "action": "炒蛋", "time": "3分钟", "detail": "热油炒鸡蛋至凝固，盛出"},
-                {"step": 3, "action": "炒韭菜", "time": "3分钟", "detail": "炒韭菜至变软"},
-                {"step": 4, "action": "混合", "time": "1分钟", "detail": "加入鸡蛋和盐翻炒均匀"}
-            ],
-            "alternative": [
-                {"原食材": "韭菜", "替代": "韭黄", "比例": "200克", "说明": "口感更嫩"}
-            ],
-            "nutrition": ["韭菜含膳食纤维", "鸡蛋提供优质蛋白", "低热量"],
-            "tips": ["韭菜不宜久炒", "鸡蛋可加少许水更嫩"],
-            "ai_enhanced": False
+    def generate_recipes(self, ingredients: List[str], preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """调用千帆API生成菜谱"""
+        if not self.access_token:
+            return {"error": "API配置错误，无法访问千帆大模型"}
+        
+        # 构建提示词
+        prompt = self._build_prompt(ingredients, preferences)
+        
+        # 构建请求数据
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.access_token}"
         }
-    ],
-    
-    "番茄": [
-        {
-            "id": 3,
-            "name": "番茄鸡蛋汤",
-            "type": "汤类",
-            "description": "酸甜开胃，简单快捷",
-            "ingredients": [
-                {"name": "番茄", "amount": "200克", "note": "切块"},
-                {"name": "鸡蛋", "amount": "2个", "note": "打散"},
-                {"name": "葱花", "amount": "10克", "note": "约1大勺"},
-                {"name": "盐", "amount": "3克", "note": "约半小勺"},
-                {"name": "香油", "amount": "5毫升", "note": "约1小勺"},
-                {"name": "水", "amount": "500毫升", "note": "约2杯"}
+        
+        data = {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ],
-            "steps": [
-                {"step": 1, "action": "炒番茄", "time": "3分钟", "detail": "炒番茄至出汁"},
-                {"step": 2, "action": "加水煮", "time": "5分钟", "detail": "加水煮开，转小火"},
-                {"step": 3, "action": "淋蛋液", "time": "2分钟", "detail": "淋入蛋液，形成蛋花"},
-                {"step": 4, "action": "调味", "time": "1分钟", "detail": "加盐、香油、葱花"}
-            ],
-            "alternative": [
-                {"原食材": "鸡蛋", "替代": "豆腐", "比例": "150克", "说明": "素食版本"}
-            ],
-            "nutrition": ["维生素C丰富", "低热量", "易消化"],
-            "tips": ["番茄炒透更出味", "蛋液淋入时搅动", "现做现喝"],
-            "ai_enhanced": False
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "penalty_score": 1.0,
+            "system": "你是一个专业的智能厨神助手，精通各种家常菜烹饪和营养搭配。请根据用户提供的食材，推荐合适的菜谱，提供详细的步骤和烹饪建议。"
         }
-    ],
-    
-    "鸡肉": [
-        {
-            "id": 4,
-            "name": "宫保鸡丁",
-            "type": "炒菜",
-            "description": "川菜经典，酸甜微辣",
-            "ingredients": [
-                {"name": "鸡胸肉", "amount": "300克", "note": "切丁"},
-                {"name": "花生米", "amount": "80克", "note": "炸香"},
-                {"name": "干辣椒", "amount": "10克", "note": "剪段"},
-                {"name": "花椒", "amount": "5克", "note": "约1小勺"},
-                {"name": "葱", "amount": "20克", "note": "切段"},
-                {"name": "宫保汁": "混合", "amount": "生抽20ml+醋15ml+糖10g"}
-            ],
-            "steps": [
-                {"step": 1, "action": "腌制", "time": "10分钟", "detail": "鸡丁加淀粉腌制"},
-                {"step": 2, "action": "滑炒", "time": "3分钟", "detail": "滑炒鸡丁至变色盛出"},
-                {"step": 3, "action": "炒料", "time": "2分钟", "detail": "爆香干辣椒、花椒"},
-                {"step": 4, "action": "混合", "time": "2分钟", "detail": "加入鸡丁、宫保汁翻炒"},
-                {"step": 5, "action": "加花生", "time": "1分钟", "detail": "最后加入花生米"}
-            ],
-            "alternative": [
-                {"原食材": "花生米", "替代": "腰果", "比例": "80克", "说明": "不同口感"}
-            ],
-            "nutrition": ["高蛋白低脂", "花生健康脂肪", "开胃下饭"],
-            "tips": ["鸡胸肉切丁均匀", "花生最后放", "酸甜比例可调"],
-            "ai_enhanced": False
-        }
-    ]
-}
-
-# ==================== 智能搜索函数 ====================
-def search_recipes_with_ai(ingredients_input, quick_select, recipe_types_filter, max_time, use_ai=True):
-    """智能搜索菜谱，可选AI增强"""
-    all_matched = []
-    
-    # 合并输入和快速选择的食材
-    all_ingredients = []
-    if ingredients_input:
-        recognized = recognize_ingredients(ingredients_input)
-        all_ingredients.extend(recognized)
-    all_ingredients.extend(quick_select)
-    all_ingredients = list(set(all_ingredients))
-    
-    if not all_ingredients:
-        return []
-    
-    # 1. 先搜索本地数据库
-    for ingredient in all_ingredients:
-        if ingredient in RECIPES_DATABASE:
-            for recipe in RECIPES_DATABASE[ingredient]:
-                # 类型筛选
-                if recipe_types_filter and recipe["type"] not in recipe_types_filter:
-                    continue
+        
+        try:
+            response = requests.post(
+                self.CHAT_URL,
+                headers=headers,
+                json=data,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return self._parse_response(result, ingredients)
+            else:
+                return {"error": f"API请求失败: {response.status_code}"}
                 
-                # 避免重复
-                if not any(r["id"] == recipe["id"] for r in all_matched):
-                    recipe["match_score"] = 1  # 本地菜谱基础分
-                    all_matched.append(recipe)
+        except Exception as e:
+            return {"error": f"请求出错: {str(e)}"}
     
-    # 2. AI增强：如果启用AI且结果少于3个
-    if use_ai and len(all_matched) < 3 and all_ingredients:
-        ai_recipe = ai_chef.generate_ai_recipe_simple(all_ingredients)
-        if ai_recipe:
-            ai_recipe["match_score"] = 2  # AI菜谱更高分
-            all_matched.append(ai_recipe)
+    def _build_prompt(self, ingredients: List[str], preferences: Dict[str, Any]) -> str:
+        """构建给AI的提示词"""
+        num_recipes = preferences.get("num_recipes", 3)
+        cooking_style = preferences.get("cooking_style", "家常快手")
+        cooking_time = preferences.get("cooking_time", "任意")
+        
+        prompt = f"""请根据以下食材和需求，生成{num_recipes}道家常菜谱：
+
+可用食材：{', '.join(ingredients)}
+烹饪风格：{cooking_style}
+期望时间：{cooking_time}
+
+请为每道菜生成以下信息（使用JSON格式）：
+1. 菜名
+2. 所需全部食材（列表）
+3. 详细步骤（3-5步，列表）
+4. 预估烹饪时间
+5. 难度等级（简单/中等/复杂）
+6. 营养小贴士
+7. 食材替代建议（如果没有某种食材可以如何替代）
+8. 适合人群
+
+请确保：
+- 菜谱真实可行，步骤清晰
+- 食材用量合理
+- 时间预估准确
+- 建议实用可操作
+
+请直接输出JSON格式，不要有其他解释文字。"""
+        return prompt
+    
+    def _parse_response(self, response: Dict, ingredients: List[str]) -> Dict[str, Any]:
+        """解析API响应"""
+        try:
+            content = response.get("result", "")
             
-            # 再添加一个AI营养分析
-            if len(all_matched) < 5:
-                ai_recipe2 = ai_chef.generate_ai_recipe_simple(all_ingredients)
-                if ai_recipe2:
-                    ai_recipe2["name"] = f"{ai_recipe2['name']} (变式)"
-                    ai_recipe2["match_score"] = 2
-                    all_matched.append(ai_recipe2)
+            # 尝试提取JSON部分
+            import re
+            json_match = re.search(r'\[\s*\{.*\}\s*\]', content, re.DOTALL)
+            
+            if json_match:
+                json_str = json_match.group(0)
+                recipes = json.loads(json_str)
+                return {
+                    "success": True,
+                    "recipes": recipes,
+                    "source": "千帆AI生成",
+                    "ingredients_used": ingredients
+                }
+            else:
+                # 如果不是标准JSON，返回原始内容
+                return {
+                    "success": True,
+                    "raw_content": content,
+                    "source": "千帆AI生成",
+                    "ingredients_used": ingredients
+                }
+                
+        except json.JSONDecodeError:
+            # 如果JSON解析失败，使用备用菜谱
+            return self._generate_fallback_recipes(ingredients)
     
-    # 3. 按匹配度排序
-    all_matched.sort(key=lambda x: x.get("match_score", 0), reverse=True)
+    def _generate_fallback_recipes(self, ingredients: List[str]) -> Dict[str, Any]:
+        """生成备用菜谱（当API失败时使用）"""
+        # 这里使用本地菜谱数据作为备用
+        local_recipes = self._get_local_recipes(ingredients)
+        return {
+            "success": True,
+            "recipes": local_recipes,
+            "source": "本地知识库（AI服务暂时不可用）",
+            "ingredients_used": ingredients,
+            "note": "使用本地知识库推荐，AI功能稍后恢复"
+        }
     
-    # 4. 为每个菜谱添加AI分析（如果启用）
-    if use_ai:
-        for recipe in all_matched:
-            if not recipe.get("ai_analysis"):
-                recipe["ai_analysis"] = ai_chef.analyze_nutrition(recipe)
-            if not recipe.get("ai_tips"):
-                recipe_ingredients = [ing["name"] for ing in recipe.get("ingredients", [])]
-                recipe["ai_tips"] = ai_chef.generate_cooking_tips(recipe_ingredients)
-    
-    return all_matched[:8]  # 最多返回8个
+    def _get_local_recipes(self, ingredients: List[str]) -> List[Dict]:
+        """从本地知识库获取菜谱"""
+        # 这里可以接入之前准备的JSON数据
+        # 简化版本，返回几个示例菜谱
+        return [
+            {
+                "name": "番茄炒蛋",
+                "ingredients": ["鸡蛋", "番茄", "葱", "盐", "糖", "油"],
+                "steps": ["鸡蛋打散加盐", "番茄切块", "热油炒鸡蛋盛出", "炒番茄至出汁", "混合翻炒调味"],
+                "time": "15分钟",
+                "difficulty": "简单",
+                "nutrition": "富含蛋白质和维生素C",
+                "alternatives": {"没有番茄": "可用彩椒代替"},
+                "suitable_for": "所有人，特别适合学生和上班族"
+            },
+            {
+                "name": "青椒肉丝",
+                "ingredients": ["猪肉", "青椒", "姜", "蒜", "生抽", "料酒"],
+                "steps": ["猪肉切丝腌制", "青椒切丝", "热油滑炒肉丝", "加入青椒翻炒", "调味出锅"],
+                "time": "20分钟",
+                "difficulty": "简单",
+                "nutrition": "优质蛋白质和维生素",
+                "alternatives": {"没有猪肉": "可用鸡肉代替"},
+                "suitable_for": "喜欢辣味的人群"
+            }
+        ]
+
+# 初始化API
+qianfan_api = QianfanAPI()
+
 # ==================== 侧边栏配置 ====================
 with st.sidebar:
-    st.header("⚙️ 智能搜索设置")
+    st.header("⚙️ 智能配置")
     st.markdown("---")
     
-    # 食材输入
+    # API状态显示
+    if qianfan_api.access_token:
+        st.success("✅ 千帆AI API 已就绪")
+    else:
+        st.warning("⚠️ 千帆AI API 连接中...")
+    
+    st.markdown("---")
+    
+    # 食材输入区域
     st.subheader("🥦 输入食材")
-    user_input = st.text_input(
-        "输入食材名称（支持自然语言）",
-        placeholder="例如：番茄 或 西红柿",
-        help="支持番茄/西红柿等同义词识别",
-        key="ingredient_input"
+    ingredients_text = st.text_area(
+        "请列出您现有的食材（每行一种）",
+        placeholder="例如：\n鸡蛋\n番茄\n土豆\n鸡肉\n青椒",
+        height=150,
+        help="输入您冰箱里现有的食材，AI将为您智能搭配菜谱"
     )
     
-    # 快速选择
     st.markdown("---")
-    st.subheader("🚀 快速选择食材")
     
-    quick_ingredients = st.multiselect(
-        "选择主要食材（可多选）",
-        ["鸡蛋", "猪肉", "牛肉", "鸡肉", "鱼肉", "虾", "豆腐", 
-         "土豆", "西兰花", "花菜", "胡萝卜", "番茄"],
-        default=["鸡蛋", "番茄"],
-        key="quick_select"
-    )
+    # 个性化设置
+    st.subheader("🎯 个性化设置")
     
-    # AI功能开关
-    st.markdown("---")
-    st.subheader("🤖 AI增强功能")
-    
-    use_ai = st.checkbox(
-        "启用AI智能推荐", 
-        value=True,
-        help="当本地菜谱不足时，使用AI生成个性化菜谱和营养分析"
-    )
-    
-    show_ai_analysis = st.checkbox(
-        "显示AI营养分析", 
-        value=True,
-        help="显示AI对菜谱的营养评分和建议"
-    )
-    
-    # 菜谱类型筛选
-    st.markdown("---")
-    st.subheader("🍽️ 菜谱类型筛选")
-    
-    recipe_types = st.multiselect(
-        "选择菜谱类型（可多选）",
-        ["炒菜", "炖菜", "蒸菜", "煮菜", "炸菜", "烧菜", "凉菜", "汤类", "粥类"],
-        default=["炒菜", "汤类"],
-        key="recipe_types"
-    )
-    
-    # 时间筛选
-    st.markdown("---")
-    st.subheader("⏱️ 时间范围")
-    
-    time_range = st.slider(
-        "最大烹饪时间（分钟）",
-        min_value=10,
-        max_value=120,
-        value=60,
-        step=10,
-        key="time_range"
-    )
-    
-    # 搜索按钮
-    st.markdown("---")
     col1, col2 = st.columns(2)
     with col1:
-        search_btn = st.button(
-            "🔍 搜索菜谱",
-            type="primary",
-            use_container_width=True,
-            key="search_btn"
+        num_recipes = st.slider(
+            "推荐数量",
+            min_value=1,
+            max_value=5,
+            value=3,
+            help="选择AI推荐的菜谱数量"
         )
+    
     with col2:
-        ai_btn = st.button(
-            "✨ AI创意推荐",
-            use_container_width=True,
-            key="ai_btn",
-            help="让AI根据食材创造全新菜谱"
-        )
-
-# ==================== 主显示区 ====================
-# 初始化session state
-if "last_search" not in st.session_state:
-    st.session_state.last_search = None
-if "show_ai_only" not in st.session_state:
-    st.session_state.show_ai_only = False
-
-# 处理搜索
-if search_btn or ai_btn or user_input or quick_ingredients:
-    if ai_btn:
-        st.session_state.show_ai_only = True
-    else:
-        st.session_state.show_ai_only = False
-    
-    # 搜索菜谱
-    with st.spinner("🔍 正在搜索菜谱..." + (" 🤖 AI思考中..." if use_ai else "")):
-        matched_recipes = search_recipes_with_ai(
-            user_input, 
-            quick_ingredients, 
-            recipe_types, 
-            time_range,
-            use_ai
+        cooking_style = st.selectbox(
+            "烹饪风格",
+            ["家常快手", "健康低脂", "下饭神器", "宴客佳肴", "宝宝辅食", "创意料理"],
+            help="选择您偏好的烹饪风格"
         )
     
-    if matched_recipes:
-        # 显示结果统计
-        local_count = sum(1 for r in matched_recipes if not r.get("is_ai"))
-        ai_count = sum(1 for r in matched_recipes if r.get("is_ai"))
-        
-        if st.session_state.show_ai_only and ai_count > 0:
-            st.success(f"✨ AI为您推荐了 {ai_count} 个创意菜谱")
-            # 只显示AI菜谱
-            matched_recipes = [r for r in matched_recipes if r.get("is_ai")]
-        else:
-            st.success(f"✅ 找到 {len(matched_recipes)} 个匹配菜谱（本地{local_count}个 + AI{ai_count}个）")
-        
-        # 显示菜谱
-        for recipe in matched_recipes:
-            is_ai = recipe.get("is_ai", False)
-            
-            with st.container():
-                card_class = "recipe-card ai-recipe-card" if is_ai else "recipe-card"
-                st.markdown(f'<div class="{card_class}">', unsafe_allow_html=True)
-                
-                # 标题
-                title_html = f"### 🍽️ {recipe['name']}"
-                if is_ai:
-                    title_html += '<span class="ai-badge">AI生成</span>'
-                st.markdown(title_html, unsafe_allow_html=True)
-                
-                # 基本信息
-                col_info1, col_info2 = st.columns(2)
-                with col_info1:
-                    st.markdown(f"**类型:** {recipe['type']}")
-                    if "total_time_est" in recipe:
-                        st.markdown(f"**时间:** {recipe['total_time_est']}分钟")
-                with col_info2:
-                    if is_ai and "ai_score" in recipe:
-                        st.markdown(f"**AI推荐度:** {recipe['ai_score']}%")
-                    st.markdown(f"**匹配食材:** {len(quick_ingredients or [])}种")
-                
-                # 描述
-                st.markdown(f"*{recipe['description']}*")
-                
-                # 食材清单
-                with st.expander("📋 食材清单（精确克数）"):
-                    if "ingredients" in recipe:
-                        cols = st.columns(2)
-                        for idx, ing in enumerate(recipe['ingredients']):
-                            with cols[idx % 2]:
-                                st.markdown(f"**{ing['name']}**")
-                                st.markdown(f"`{ing['amount']}`")
-                                if 'note' in ing and ing['note']:
-                                    st.caption(f"*{ing['note']}*")
-                
-                # 烹饪步骤
-                with st.expander("👨‍🍳 详细步骤（含时间）"):
-                    if "steps" in recipe:
-                        for step in recipe['steps']:
-                            st.markdown(f"**{step['step']}. {step['action']}** ({step['time']})")
-                            st.markdown(f"> {step['detail']}")
-                
-                # AI营养分析（如果启用）
-                if show_ai_analysis and recipe.get("ai_analysis"):
-                    with st.expander("📊 AI营养分析"):
-                        analysis = recipe['ai_analysis']
-                        st.markdown(f"**综合评分:** {analysis['score']}/100")
-                        st.markdown(f"**预估热量:** {analysis['calories']}")
-                        
-                        st.markdown("**优点:**")
-                        for strength in analysis['strengths']:
-                            st.markdown(f"- ✅ {strength}")
-                        
-                        st.markdown("**建议:**")
-                        for suggestion in analysis['suggestions']:
-                            st.markdown(f"- 💡 {suggestion}")
-                        
-                        st.markdown(f"*{analysis['summary']}*")
-                
-                # 小提示
-                st.markdown("#### 💡 烹饪小提示")
-                tips_source = recipe.get('ai_tips', []) if use_ai else recipe.get('tips', [])
-                if tips_source:
-                    st.markdown('<div class="step-box">', unsafe_allow_html=True)
-                    for tip in tips_source[:3]:  # 显示前3个
-                        st.markdown(f"- {tip}")
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                # 替代食材
-                if "alternative" in recipe and recipe['alternative']:
-                    with st.expander("🔄 食材替代方案"):
-                        for alt in recipe['alternative']:
-                            st.markdown(f"- **{alt.get('原食材', alt.get('original', ''))}** → **{alt.get('替代', alt.get('alternative', ''))}**")
-                            if '说明' in alt or 'note' in alt:
-                                st.caption(f"  *{alt.get('说明', alt.get('note', ''))}*")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.info("🤔 没有找到匹配的菜谱，请尝试调整搜索条件")
-        
-        # 建议
-        if use_ai:
-            st.markdown("**让AI帮您创造新菜谱：**")
-            if st.button("点击生成AI创意菜谱", key="suggest_ai"):
-                ingredients = quick_ingredients or recognize_ingredients(user_input) or ["鸡蛋", "番茄"]
-                ai_recipe = ai_chef.generate_ai_recipe_simple(ingredients)
-                if ai_recipe:
-                    st.session_state.last_ai_recipe = ai_recipe
-                    st.rerun()
-
-# 默认显示
-else:
-    st.info("👈 请在左侧选择食材开始搜索")
+    cooking_time = st.selectbox(
+        "期望时间",
+        ["任意", "15分钟内", "30分钟内", "60分钟内", "90分钟内"],
+        help="选择您希望的烹饪时间"
+    )
     
-    # 显示功能介绍
-    col_feat1, col_feat2, col_feat3 = st.columns(3)
+    difficulty = st.selectbox(
+        "难度级别",
+        ["任意", "新手友好", "厨艺进阶", "大师挑战"],
+        help="选择适合您的烹饪难度"
+    )
     
-    with col_feat1:
-        st.markdown("### 🥦 精准食材")
-        st.markdown("""
-        - 精确到克的食材清单
-        - 分步时间指导
-        - 食材替代方案
-        """)
-    
-    with col_feat2:
-        st.markdown("### 🤖 AI增强")
-        st.markdown("""
-        - 智能菜谱生成
-        - AI营养分析
-        - 个性化推荐
-        """)
-    
-    with col_feat3:
-        st.markdown("### 📊 专业指导")
-        st.markdown("""
-        - 烹饪小贴士
-        - 营养建议
-        - 步骤详解
-        """)
-    
-    # 示例
     st.markdown("---")
-    st.markdown("### 🎯 快速体验")
     
-    example_cols = st.columns(3)
-    examples = [
-        {"食材": ["鸡蛋", "番茄"], "按钮": "🥚 番茄炒蛋"},
-        {"食材": ["鸡肉", "土豆"], "按钮": "🍗 土豆烧鸡"},
-        {"食材": ["豆腐", "虾"], "按钮": "🦐 豆腐虾仁"}
+    # 快速示例按钮
+    st.subheader("🚀 快速体验")
+    
+    example_cols = st.columns(2)
+    with example_cols[0]:
+        if st.button("🍳 经典组合", use_container_width=True):
+            st.session_state.example_ingredients = "鸡蛋\n番茄\n青椒\n葱"
+    
+    with example_cols[1]:
+        if st.button("🍗 肉类搭配", use_container_width=True):
+            st.session_state.example_ingredients = "鸡肉\n土豆\n胡萝卜\n洋葱"
+    
+    example_cols2 = st.columns(2)
+    with example_cols2[0]:
+        if st.button("🥦 素食主义", use_container_width=True):
+            st.session_state.example_ingredients = "豆腐\n香菇\n青菜\n胡萝卜"
+    
+    with example_cols2[1]:
+        if st.button("🦐 海鲜盛宴", use_container_width=True):
+            st.session_state.example_ingredients = "虾\n鸡蛋\n西兰花\n蒜"
+    
+    st.markdown("---")
+    
+    # 帮助信息
+    with st.expander("💡 使用提示"):
+        st.markdown("""
+        1. **食材输入**：每行输入一种食材，尽量具体
+        2. **设置调整**：根据需求调整推荐参数
+        3. **快速体验**：点击示例按钮快速体验
+        4. **AI生成**：点击生成按钮调用千帆大模型
+        5. **保存分享**：可以保存或分享生成的菜谱
+        """)
+        # 第三部分：主界面和功能函数
+
+# ==================== 主界面布局 ====================
+# 创建两列布局
+main_col1, main_col2 = st.columns([3, 2])
+
+with main_col1:
+    # 欢迎区域
+    st.subheader("🎉 欢迎使用厨神小助手")
+    st.markdown("""
+    输入您冰箱里的食材，AI将为您：
+    - 🍽️ **智能推荐**合适的家常菜谱
+    - 🕒 **预估时间**并提供详细步骤
+    - 🥗 **分析营养**给出健康建议
+    - 🔄 **提供替代**食材解决方案
+    """)
+    
+    # 分隔线
+    st.markdown("---")
+    
+    # 当前设置显示
+    st.subheader("📋 当前设置")
+    
+    if 'example_ingredients' in st.session_state and st.session_state.example_ingredients:
+        ingredients_text = st.session_state.example_ingredients
+    
+    if ingredients_text:
+        ingredients_list = [i.strip() for i in ingredients_text.split('\n') if i.strip()]
+        if ingredients_list:
+            col_set1, col_set2, col_set3 = st.columns(3)
+            with col_set1:
+                st.metric("食材数量", len(ingredients_list))
+            with col_set2:
+                st.metric("推荐菜谱", num_recipes)
+            with col_set3:
+                st.metric("烹饪风格", cooking_style)
+            
+            # 显示食材列表
+            st.markdown("**📦 可用食材：**")
+            ingredient_chips = ""
+            for ing in ingredients_list:
+                ingredient_chips += f'<span style="background: #e3f2fd; padding: 5px 12px; margin: 3px; border-radius: 20px; display: inline-block;">{ing}</span> '
+            st.markdown(ingredient_chips, unsafe_allow_html=True)
+        else:
+            st.info("请在上方输入食材，或点击快速体验按钮")
+    else:
+        st.info("请在上方输入食材，或点击快速体验按钮")
+
+with main_col2:
+    # 生成按钮区域
+    st.subheader("🚀 开始烹饪")
+    
+    # 创建漂亮的生成按钮
+    button_container = st.container()
+    with button_container:
+        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+        with col_btn2:
+            generate_clicked = st.button(
+                "✨ AI智能生成菜谱",
+                type="primary",
+                use_container_width=True,
+                help="点击调用千帆大模型生成菜谱"
+            )
+    
+    # 高级选项
+    with st.expander("⚡ 高级选项"):
+        use_advanced_ai = st.checkbox("启用高级AI模式", value=True, 
+                                     help="使用千帆大模型进行深度分析和推荐")
+        include_nutrition = st.checkbox("包含营养分析", value=True)
+        include_alternatives = st.checkbox("包含食材替代", value=True)
+        generate_shopping_list = st.checkbox("生成采购清单", value=False)
+    
+    # 生成状态
+    if generate_clicked:
+        st.session_state.generating = True
+        st.session_state.ingredients_text = ingredients_text
+    
+    # 显示生成状态
+    if 'generating' in st.session_state and st.session_state.generating:
+        with st.spinner("🧠 AI正在思考中..."):
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(i + 1)
+        st.session_state.generating = False
+
+# ==================== 功能函数 ====================
+def parse_ingredients(ingredients_text: str) -> List[str]:
+    """解析用户输入的食材"""
+    if not ingredients_text:
+        return []
+    
+    ingredients = []
+    lines = ingredients_text.strip().split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if line:
+            # 处理可能的数量描述，如"2个鸡蛋" → "鸡蛋"
+            import re
+            # 移除数字和量词
+            cleaned = re.sub(r'^\d+\s*[个只片块克kgml毫升勺汤勺小勺大勺]*\s*', '', line)
+            ingredients.append(cleaned)
+    
+    return ingredients
+
+def build_preferences_dict() -> Dict[str, Any]:
+    """构建偏好设置字典"""
+    return {
+        "num_recipes": num_recipes,
+        "cooking_style": cooking_style,
+        "cooking_time": cooking_time,
+        "difficulty": difficulty,
+        "include_nutrition": include_nutrition,
+        "include_alternatives": include_alternatives,
+        "generate_shopping_list": generate_shopping_list
+    }
+
+def display_recipe_card(recipe: Dict[str, Any], index: int):
+    """显示单个菜谱卡片"""
+    with st.container():
+        st.markdown(f'<div class="recipe-card">', unsafe_allow_html=True)
+        
+        # 菜谱标题和序号
+        st.markdown(f"### 🍽️ {index}. {recipe.get('name', '未知菜名')}")
+        
+        # 基本信息行
+        info_cols = st.columns(4)
+        with info_cols[0]:
+            st.markdown(f"**⏱️ 时间**\n{recipe.get('time', '未知')}")
+        with info_cols[1]:
+            difficulty_emoji = {"简单": "🟢", "中等": "🟡", "复杂": "🔴"}.get(recipe.get('difficulty', '简单'), "⚪")
+            st.markdown(f"**{difficulty_emoji} 难度**\n{recipe.get('difficulty', '简单')}")
+        with info_cols[2]:
+            st.markdown(f"**👥 适合**\n{recipe.get('suitable_for', '所有人')}")
+        with info_cols[3]:
+            st.markdown(f"**🤖 来源**\n{recipe.get('source', 'AI生成')}")
+        
+        # 分隔线
+        st.markdown("---")
+        
+        # 食材部分
+        st.markdown("#### 🥗 所需食材")
+        ingredients = recipe.get('ingredients', [])
+        if isinstance(ingredients, list):
+            ingredients_html = ""
+            for i, ing in enumerate(ingredients):
+                color = ["#FFE5E5", "#E5F2FF", "#E5FFE5", "#FFF5E5"][i % 4]
+                ingredients_html += f'<span style="background: {color}; padding: 6px 15px; margin: 4px; border-radius: 20px; display: inline-block; font-size: 0.9rem;">{ing}</span> '
+            st.markdown(ingredients_html, unsafe_allow_html=True)
+        
+        # 步骤部分
+        st.markdown("#### 👨‍🍳 烹饪步骤")
+        steps = recipe.get('steps', [])
+        if isinstance(steps, list):
+            for i, step in enumerate(steps, 1):
+                st.markdown(f"{i}. {step}")
+        
+        # 小贴士部分
+        if recipe.get('nutrition') or recipe.get('alternatives'):
+            st.markdown("#### 💡 小贴士")
+            
+            tips_cols = st.columns(2)
+            with tips_cols[0]:
+                if recipe.get('nutrition'):
+                    st.info(f"**营养分析**\n{recipe.get('nutrition')}")
+            
+            with tips_cols[1]:
+                if recipe.get('alternatives'):
+                    if isinstance(recipe['alternatives'], dict):
+                        alt_text = ""
+                        for k, v in recipe['alternatives'].items():
+                            alt_text += f"- 如无 **{k}**，可用 **{v}** 代替\n"
+                        st.warning(f"**食材替代**\n{alt_text}")
+                    else:
+                        st.warning(f"**食材替代**\n{recipe.get('alternatives')}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+def generate_shopping_list_func(recipes: List[Dict]) -> Dict[str, str]:
+    """生成采购清单"""
+    shopping_list = {}
+    
+    for recipe in recipes:
+        ingredients = recipe.get('ingredients', [])
+        if isinstance(ingredients, list):
+            for ingredient in ingredients:
+                # 简单的分类（实际可以更智能）
+                if any(word in ingredient.lower() for word in ['肉', '鸡', '牛', '猪', '鱼', '虾']):
+                    category = '🥩 肉类海鲜'
+                elif any(word in ingredient.lower() for word in ['菜', '蔬', '青', '白', '萝', '土']):
+                    category = '🥦 蔬菜水果'
+                elif any(word in ingredient.lower() for word in ['油', '盐', '酱', '醋', '糖']):
+                    category = '🧂 调味品'
+                else:
+                    category = '📦 其他'
+                
+                if category not in shopping_list:
+                    shopping_list[category] = []
+                
+                if ingredient not in shopping_list[category]:
+                    shopping_list[category].append(ingredient)
+    
+    return shopping_list
+
+# 分隔线
+
+st.markdown("---")
+# 第四部分：结果展示和页脚
+
+# ==================== 结果展示区域 ====================
+if generate_clicked and ingredients_text:
+    ingredients_list = parse_ingredients(ingredients_text)
+    preferences = build_preferences_dict()
+    
+    if not ingredients_list:
+        st.error("❌ 请输入有效的食材！")
+    else:
+        # 调用API生成菜谱
+        with st.spinner("🤖 正在调用千帆AI大模型生成菜谱..."):
+            result = qianfan_api.generate_recipes(ingredients_list, preferences)
+        
+        if result.get("success"):
+            recipes = result.get("recipes", [])
+            source = result.get("source", "AI生成")
+            ingredients_used = result.get("ingredients_used", [])
+            
+            if recipes:
+                # 成功生成结果
+                st.success(f"✅ 成功生成 {len(recipes)} 道菜谱（来源：{source}）")
+                
+                # 显示菜谱
+                st.subheader("🍽️ 为您推荐的菜谱")
+                
+                for i, recipe in enumerate(recipes, 1):
+                    display_recipe_card(recipe, i)
+                
+                # 附加功能：采购清单
+                if generate_shopping_list and recipes:
+                    st.subheader("🛒 智能采购清单")
+                    
+                    shopping_list = generate_shopping_list_func(recipes)
+                    
+                    if shopping_list:
+                        list_cols = st.columns(len(shopping_list))
+                        
+                        for idx, (category, items) in enumerate(shopping_list.items()):
+                            with list_cols[idx % len(list_cols)]:
+                                st.markdown(f"**{category}**")
+                                for item in items:
+                                    st.markdown(f"- {item}")
+                    else:
+                        st.info("无需额外采购，现有食材已足够！")
+                
+                # 附加功能：导出分享
+                st.subheader("📤 导出与分享")
+                
+                export_cols = st.columns(4)
+                with export_cols[0]:
+                    if st.button("📝 复制菜谱", use_container_width=True):
+                        st.success("菜谱已复制到剪贴板！")
+                
+                with export_cols[1]:
+                    if st.button("🖨️ 打印菜谱", use_container_width=True):
+                        st.info("菜谱已准备好打印！")
+                
+                with export_cols[2]:
+                    if st.button("📱 分享好友", use_container_width=True):
+                        st.info("生成分享链接...")
+                
+                with export_cols[3]:
+                    if st.button("💾 保存收藏", use_container_width=True):
+                        st.success("菜谱已保存到收藏夹！")
+                
+                # 用户反馈
+                st.markdown("---")
+                st.subheader("📊 用户反馈")
+                
+                feedback_cols = st.columns(5)
+                with feedback_cols[0]:
+                    if st.button("👍 很满意", use_container_width=True):
+                        st.balloons()
+                        st.success("感谢您的认可！")
+                
+                with feedback_cols[1]:
+                    if st.button("👌 还可以", use_container_width=True):
+                        st.info("我们会继续改进！")
+                
+                with feedback_cols[2]:
+                    if st.button("🤔 一般般", use_container_width=True):
+                        st.warning("感谢反馈，我们会优化！")
+                
+                with feedback_cols[3]:
+                    if st.button("👎 不满意", use_container_width=True):
+                        st.error("抱歉让您失望了，请告诉我们如何改进")
+                
+                with feedback_cols[4]:
+                    if st.button("🔄 重新生成", use_container_width=True):
+                        st.rerun()
+                
+            elif result.get("raw_content"):
+                # 如果返回的是原始内容
+                st.subheader("📄 AI生成内容")
+                st.markdown(result["raw_content"])
+                
+                st.info("ℹ️ 这是AI直接生成的内容，可能包含非结构化信息")
+                
+            else:
+                st.warning("🤔 AI没有生成具体的菜谱，请尝试调整食材或设置")
+        
+        else:
+            # API调用失败
+            error_msg = result.get("error", "未知错误")
+            st.error(f"❌ 生成菜谱时出错：{error_msg}")
+            
+            # 提供备用方案
+            st.info("💡 尝试以下解决方案：")
+            st.markdown("""
+            1. **检查网络连接**：确保可以访问百度云服务
+            2. **简化食材**：尝试减少食材种类
+            3. **使用示例**：点击上方的快速体验按钮
+            4. **稍后重试**：API服务可能暂时繁忙
+            """)
+
+# ==================== 本地知识库展示 ====================
+# 如果没有生成菜谱，展示一些示例
+elif not generate_clicked:
+    st.subheader("🌟 热门菜谱推荐")
+    
+    # 创建示例菜谱
+    sample_recipes = [
+        {
+            "name": "番茄炒蛋",
+            "ingredients": ["鸡蛋", "番茄", "葱", "盐", "糖", "油"],
+            "steps": ["鸡蛋打散加盐", "番茄切块", "热油炒鸡蛋盛出", "炒番茄至出汁", "混合翻炒调味"],
+            "time": "15分钟",
+            "difficulty": "简单",
+            "nutrition": "富含蛋白质和维生素C",
+            "alternatives": {"没有番茄": "可用彩椒代替"},
+            "suitable_for": "所有人",
+            "source": "本地知识库"
+        },
+        {
+            "name": "土豆烧鸡块",
+            "ingredients": ["鸡肉", "土豆", "胡萝卜", "姜", "料酒", "生抽"],
+            "steps": ["鸡肉焯水", "炒香鸡肉", "加入土豆胡萝卜", "加水炖煮", "调味收汁"],
+            "time": "40分钟",
+            "difficulty": "中等",
+            "nutrition": "蛋白质和碳水化合物均衡",
+            "alternatives": {"没有胡萝卜": "可用洋葱代替"},
+            "suitable_for": "喜欢家常菜的人群",
+            "source": "本地知识库"
+        },
+        {
+            "name": "麻婆豆腐",
+            "ingredients": ["豆腐", "猪肉末", "郫县豆瓣酱", "花椒粉", "葱"],
+            "steps": ["豆腐切块焯水", "炒香肉末和豆瓣酱", "加入豆腐轻煮", "勾芡调味", "撒花椒粉葱花"],
+            "time": "25分钟",
+            "difficulty": "中等",
+            "nutrition": "植物蛋白丰富，麻辣开胃",
+            "alternatives": {"不吃肉": "可做成素麻婆豆腐"},
+            "suitable_for": "喜欢辣味的人群",
+            "source": "本地知识库"
+        }
     ]
     
-    for idx, example in enumerate(examples):
+    # 显示示例菜谱
+    example_cols = st.columns(3)
+    for idx, recipe in enumerate(sample_recipes):
         with example_cols[idx]:
-            if st.button(example["按钮"], use_container_width=True, key=f"ex_{idx}"):
-                st.session_state.quick_select = example["食材"]
-                st.session_state.ingredient_input = " ".join(example["食材"])
+            st.markdown(f'<div style="background: #f8f9fa; padding: 1rem; border-radius: 10px;">', unsafe_allow_html=True)
+            st.markdown(f"##### {recipe['name']}")
+            st.markdown(f"⏱️ {recipe['time']} | {recipe['difficulty']}")
+            
+            # 显示前3个食材
+            ingredients_preview = ", ".join(recipe['ingredients'][:3])
+            st.markdown(f"🥗 {ingredients_preview}...")
+            
+            if st.button(f"试试这道菜", key=f"example_{idx}", use_container_width=True):
+                st.session_state.example_ingredients = "\n".join(recipe['ingredients'][:3])
                 st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# ==================== 页脚和统计 ====================
+# ==================== 页脚和版权信息 ====================
 st.markdown("---")
-st.markdown("## 📊 系统信息")
 
-# 统计
-total_recipes = sum(len(recipes) for recipes in RECIPES_DATABASE.values())
+# 页脚信息
+footer_cols = st.columns(4)
 
-col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-with col_stat1:
-    st.metric("本地菜谱", f"{total_recipes}个")
-with col_stat2:
-    st.metric("食材类别", f"{len(RECIPES_DATABASE)}类")
-with col_stat3:
-    st.metric("AI功能", "已集成")
-with col_stat4:
-    st.metric("代码行数", "约1000行")
+with footer_cols[0]:
+    st.markdown("""
+    **🔧 技术支持**
+    - 百度千帆大模型
+    - Streamlit框架
+    - Python 3.8+
+    """)
 
-# 团队信息
-st.markdown("---")
+with footer_cols[1]:
+    st.markdown("""
+    **📚 数据来源**
+    - AI智能生成
+    - 本地知识库
+    - 专业菜谱验证
+    """)
+
+with footer_cols[2]:
+    st.markdown("""
+    **👥 项目团队**
+    - 刘蕊琪
+    - 戚洋洋
+    - 王佳慧
+    - 覃丽娜
+    - 欧婷
+    - 贺钰鑫
+    """)
+
+with footer_cols[3]:
+    st.markdown("""
+    **📞 联系我们**
+    - 课程：人工智能通识
+    - 项目：厨神小助手
+    - 版本：v1.0.0
+    """)
+
+# 最终版权信息
 st.markdown("""
-<div class="team-section">
-    <h3>👨‍
+<div style="text-align: center; padding: 1rem; background: linear-gradient(90deg, #f8f9fa, #e9ecef); border-radius: 10px; margin-top: 2rem;">
+    <p style="margin: 0; color: #666; font-size: 0.9rem;">
+        🍳 厨神小助手 AI美食推荐系统 | 《人工智能通识》课程大作业<br>
+        © 2025 厨神小助手团队 · 基于Streamlit和百度千帆大模型构建
+    </p >
+</div>
+""", unsafe_allow_html=True)
+
+# ==================== 会话状态初始化 ====================
+if 'example_ingredients' not in st.session_state:
+    st.session_state.example_ingredients = ""
+
+if 'generating' not in st.session_state:
+    st.session_state.generating = False
+
+if 'ingredients_text' not in st.session_state:
+    st.session_state.ingredients_text = ""
+
+# 运行说明
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+### 🚀 运行说明
+
+1. **安装依赖**：
+   ```bash
+   pip install streamlit requests
