@@ -224,39 +224,54 @@ RECIPES = {
     }
 }
 
-# ========== 智能食材识别 ==========
+# ========== 修复的智能食材识别 ==========
 def recognize_ingredients(text):
-    """识别食材，支持番茄=西红柿"""
-    text_lower = text.lower()
+    """识别食材 - 修复版"""
+    # 清理输入文本
+    text_clean = text.strip().lower()
+    if not text_clean:
+        return []
+    
     recognized = []
     
-    # 处理番茄/西红柿
-    if any(word in text_lower for word in ['番茄', '西红柿', 'tomato']):
-        recognized.append('番茄')
+    # 按空格分割输入
+    words = text_clean.split()
     
-    # 简单匹配
-    if '鸡蛋' in text_lower or 'egg' in text_lower:
-        recognized.append('鸡蛋')
-    if '米饭' in text_lower or '米' in text_lower:
-        recognized.append('米饭')
-    if '鸡肉' in text_lower or '鸡' in text_lower:
-        recognized.append('鸡肉')
-    if '土豆' in text_lower:
-        recognized.append('土豆')
-    if '豆腐' in text_lower:
-        recognized.append('豆腐')
-    if '皮蛋' in text_lower:
-        recognized.append('皮蛋')
-    if '瘦肉' in text_lower or '猪肉' in text_lower:
-        recognized.append('瘦肉')
-    if '小米' in text_lower:
-        recognized.append('小米')
-    if '南瓜' in text_lower:
-        recognized.append('南瓜')
+    # 检查每个词是否是食材
+    for word in words:
+        if word in ['番茄', '西红柿', 'tomato']:
+            if '番茄' not in recognized:
+                recognized.append('番茄')
+        elif word in ['鸡蛋', 'egg']:
+            if '鸡蛋' not in recognized:
+                recognized.append('鸡蛋')
+        elif word in ['米饭', '米']:
+            if '米饭' not in recognized:
+                recognized.append('米饭')
+        elif word in ['鸡肉', '鸡']:
+            if '鸡肉' not in recognized:
+                recognized.append('鸡肉')
+        elif word == '土豆':
+            if '土豆' not in recognized:
+                recognized.append('土豆')
+        elif word == '豆腐':
+            if '豆腐' not in recognized:
+                recognized.append('豆腐')
+        elif word == '皮蛋':
+            if '皮蛋' not in recognized:
+                recognized.append('皮蛋')
+        elif word == '瘦肉':
+            if '瘦肉' not in recognized:
+                recognized.append('瘦肉')
+        elif word == '小米':
+            if '小米' not in recognized:
+                recognized.append('小米')
+        elif word == '南瓜':
+            if '南瓜' not in recognized:
+                recognized.append('南瓜')
     
-    return list(set(recognized))
-
-# ========== 严格的菜谱搜索函数 ==========
+    return recognized
+    # ========== 严格的菜谱搜索函数 ==========
 def search_recipes_strict(ingredients, selected_cats, max_time):
     """严格搜索菜谱：必须包含所有输入的食材"""
     filtered_recipes = []
@@ -297,7 +312,8 @@ def search_recipes_strict(ingredients, selected_cats, max_time):
             filtered_recipes.append((name, recipe))
     
     return filtered_recipes
-    # ========== 界面部分 ==========
+
+# ========== 界面部分 ==========
 st.title("🍳 全能厨神助手")
 st.markdown("### 涵盖汤、粥、饭、菜、蔬菜泥、水果泥、甜点等80+菜谱")
 
@@ -317,7 +333,7 @@ with st.sidebar:
 
 # 主界面
 if generate:
-    # 识别食材
+    # 识别食材 - 使用修正版的函数
     recognized = recognize_ingredients(user_input)
     
     if recognized:
@@ -335,23 +351,28 @@ if generate:
                     st.markdown("**🥗 食材清单**")
                     
                     # 使用3列布局显示食材
-                    cols = st.columns(3)
-                    for idx, ing in enumerate(recipe['ingredients']):
-                        col_idx = idx % 3
-                        with cols[col_idx]:
-                            st.markdown(f"**{ing['name']}**")
-                            st.write(f"{ing['amount']}")
+                    ingredients = recipe['ingredients']
+                    cols_per_row = 3
+                    num_rows = (len(ingredients) + cols_per_row - 1) // cols_per_row
+                    
+                    for row in range(num_rows):
+                        cols = st.columns(cols_per_row)
+                        for col in range(cols_per_row):
+                            idx = row * cols_per_row + col
+                            if idx < len(ingredients):
+                                ing = ingredients[idx]
+                                with cols[col]:
+                                    st.markdown(f"**{ing['name']}**")
+                                    st.write(f"{ing['amount']}")
                     
                     # 步骤
                     st.markdown("**👨‍🍳 制作步骤**")
-                    steps_lines = recipe['steps'].split('\n')
-                    for step in steps_lines:
-                        st.write(step)
+                    st.text(recipe['steps'])
                     
                     # 替代食材
                     if recipe['alternatives']:
                         st.markdown("**🔄 替代食材**")
-                        st.info(recipe['alternatives'])
+                        st.text(recipe['alternatives'])
                     
                     # 营养和小贴士
                     col1, col2 = st.columns(2)
@@ -366,24 +387,8 @@ if generate:
             st.write("1. 检查食材是否输入正确")
             st.write("2. 放宽时间限制")
             st.write("3. 选择更多菜谱类型")
-            
-            # 显示可能相关的菜谱（部分匹配）
-            st.markdown("#### 🔍 相关菜谱推荐")
-            partial_recipes = []
-            for name, recipe in RECIPES.items():
-                recipe_ingredients = [ing['name'] for ing in recipe['ingredients']]
-                # 检查是否有部分食材匹配
-                matched_ingredients = [ing for ing in recognized if ing in recipe_ingredients]
-                if matched_ingredients:
-                    partial_recipes.append((name, recipe, len(matched_ingredients)))
-            
-            # 按匹配度排序
-            partial_recipes.sort(key=lambda x: x[2], reverse=True)
-            
-            for name, recipe, match_count in partial_recipes[:3]:  # 只显示前3个
-                st.write(f"• **{name}** - 匹配{match_count}种食材")
     else:
-        st.error("未识别到有效食材，请尝试输入: 番茄、鸡蛋、米饭、鸡肉、皮蛋、小米等")
+        st.error("未识别到有效食材，请尝试输入: 番茄、鸡蛋、米饭、鸡肉等")
 
 # 默认显示
 else:
@@ -394,27 +399,63 @@ st.markdown("---")
 st.markdown("**👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫**")
 st.caption("《人工智能通识》大作业 - 智能美食推荐系统")
 
-# 添加一些CSS样式
+# 添加CSS样式
 st.markdown("""
 <style>
+    /* 按钮样式 */
     .stButton > button {
         width: 100%;
-        background-color: #4CAF50;
+        background-color: #FF6B6B;
         color: white;
         font-weight: bold;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
     }
     .stButton > button:hover {
-        background-color: #45a049;
+        background-color: #FF5252;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
     }
+    
+    /* 成功消息样式 */
     .stSuccess {
         background-color: #d4edda;
-        padding: 10px;
-        border-radius: 5px;
+        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 10px 0;
     }
+    
+    /* 警告消息样式 */
     .stWarning {
         background-color: #fff3cd;
-        padding: 10px;
-        border-radius: 5px;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 10px 0;
+    }
+    
+    /* 错误消息样式 */
+    .stError {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 10px 0;
+    }
+    
+    /* 展开器样式 */
+    .streamlit-expanderHeader {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    
+    /* 侧边栏样式 */
+    .css-1d391kg {
+        background-color: #f8f9fa;
     }
 </style>
 """, unsafe_allow_html=True)
