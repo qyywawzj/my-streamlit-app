@@ -1,81 +1,45 @@
 import streamlit as st
-from datetime import datetime
 
 # ====================== 页面样式配置 ======================
 def set_page_style():
     st.set_page_config(
         page_title="10道核心菜谱助手",
         page_icon="🍳",
-        layout="centered",
-        initial_sidebar_state="expanded"
+        layout="centered"
     )
+    # 美化折叠卡片和文字样式
     st.markdown("""
     <style>
-    .main-header {
-        color: #FF6B6B;
-        text-align: center;
-        padding: 10px 0;
-        font-size: 2rem;
-    }
-    .subtitle {
-        text-align: center;
-        color: #666;
-        margin-bottom: 20px;
-        font-size: 1.1rem;
-    }
-    .recipe-card {
-        background-color: white;
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    .recipe-name {
-        color: #333;
-        font-size: 1.3rem;
-        margin-top: 10px;
-        margin-bottom: 5px;
-    }
-    .recipe-info {
-        color: #666;
-        font-size: 0.9rem;
-        margin-bottom: 10px;
-    }
-    .team-section {
-        text-align: center;
-        margin-top: 30px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
-    .team-header {
-        color: #555;
-        margin-bottom: 10px;
-    }
-    .team-member {
-        display: inline-block;
-        margin: 5px;
-        padding: 5px 10px;
-        background-color: #f0f7ff;
-        border-radius: 5px;
-        font-size: 0.9rem;
-    }
-    .course-info {
-        color: #888;
-        font-size: 0.9rem;
-        margin-top: 10px;
-    }
-    .tip-text {color: #27ae60; font-size: 14px; line-height: 1.6;}
-    .nutri-text {color: #3498db; font-size: 14px;}
     .stExpander {
-        border-radius: 10px;
-        margin: 10px 0;
+        border-radius: 12px;
+        margin: 15px 0;
         border: 1px solid #f0f0f0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .stImage {
         border-radius: 8px;
-        margin: 5px 0;
-        width: 100%;
+        margin: 10px 0;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    .recipe-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    .tip-text {
+        color: #27ae60;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .nutri-text {
+        color: #3498db;
+        font-size: 14px;
+    }
+    .team-text {
+        font-size: 16px;
+        color: #7f8c8d;
+        text-align: center;
+        margin-top: 30px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -87,7 +51,7 @@ def get_core_recipes():
         "土豆丝炒肉": {
             "category": "炒菜",
             "time": "25分钟",
-            "img_url": "https://images.unsplash.com/photo-1563245372-f21724e3856d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/1080/800/500",  # 适配小炒图
             "ingredients": [
                 {"name": "土豆", "amount": "400g"},
                 {"name": "猪肉里脊", "amount": "150g"},
@@ -108,7 +72,7 @@ def get_core_recipes():
         "土豆烧肉": {
             "category": "炒菜",
             "time": "40分钟",
-            "img_url": "https://images.unsplash.com/photo-1594046243098-4d6c0475d0f8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/1060/800/500",  # 适配红烧图
             "ingredients": [
                 {"name": "土豆", "amount": "300g"},
                 {"name": "五花肉", "amount": "200g"},
@@ -126,10 +90,10 @@ def get_core_recipes():
             "tips": ["加热水防肉质变柴", "土豆晚放，避免煮烂"],
             "nutrition": {"热量": "380大卡", "蛋白质": "18g", "碳水": "25g"}
         },
-                "土豆猪肉粥": {
+        "土豆猪肉粥": {
             "category": "粥类",
             "time": "50分钟",
-            "img_url": "https://images.unsplash.com/photo-1563245372-f21724e3856d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/292/800/500",  # 适配粥品图
             "ingredients": [
                 {"name": "大米", "amount": "100g"},
                 {"name": "土豆", "amount": "150g"},
@@ -151,7 +115,7 @@ def get_core_recipes():
         "土豆猪肉焖饭": {
             "category": "饭类",
             "time": "45分钟",
-            "img_url": "https://images.unsplash.com/photo-1563245372-f21724e3856d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/1027/800/500",  # 适配焖饭图
             "ingredients": [
                 {"name": "大米", "amount": "200g"},
                 {"name": "土豆", "amount": "200g"},
@@ -174,7 +138,7 @@ def get_core_recipes():
         "番茄炒蛋": {
             "category": "炒菜",
             "time": "15分钟",
-            "img_url": "https://images.unsplash.com/photo-1593909011743-40b2a5c3eb5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/1082/800/500",  # 适配番茄炒蛋图
             "ingredients": [
                 {"name": "番茄", "amount": "300g"},
                 {"name": "鸡蛋", "amount": "3个"},
@@ -195,7 +159,7 @@ def get_core_recipes():
         "番茄鸡蛋汤": {
             "category": "汤类",
             "time": "15分钟",
-            "img_url": "https://images.unsplash.com/photo-1593909011743-40b2a5c3eb5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/1079/800/500",  # 适配汤品图
             "ingredients": [
                 {"name": "番茄", "amount": "200g"},
                 {"name": "鸡蛋", "amount": "2个"},
@@ -215,7 +179,7 @@ def get_core_recipes():
         "番茄鸡蛋豆腐羹": {
             "category": "汤羹",
             "time": "20分钟",
-            "img_url": "https://images.unsplash.com/photo-1593909011743-40b2a5c3eb5e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/119/800/500",  # 适配汤羹图
             "ingredients": [
                 {"name": "番茄", "amount": "1个"},
                 {"name": "鸡蛋", "amount": "1个"},
@@ -236,7 +200,7 @@ def get_core_recipes():
         "香菇豆腐汤": {
             "category": "汤类",
             "time": "25分钟",
-            "img_url": "https://images.unsplash.com/photo-1547592180-85f173990554?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/127/800/500",  # 适配清汤图
             "ingredients": [
                 {"name": "嫩豆腐", "amount": "250g"},
                 {"name": "香菇", "amount": "4朵"},
@@ -256,7 +220,7 @@ def get_core_recipes():
         "香菇酿豆腐": {
             "category": "蒸菜",
             "time": "30分钟",
-            "img_url": "https://images.unsplash.com/photo-1547592180-85f173990554?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/139/800/500",  # 适配蒸菜图
             "ingredients": [
                 {"name": "北豆腐", "amount": "300g"},
                 {"name": "香菇", "amount": "6朵"},
@@ -276,7 +240,7 @@ def get_core_recipes():
         "香菇豆腐炒青菜": {
             "category": "炒菜",
             "time": "20分钟",
-            "img_url": "https://images.unsplash.com/photo-1547592180-85f173990554?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+            "img_url": "https://picsum.photos/id/145/800/500",  # 适配小炒图
             "ingredients": [
                 {"name": "香菇", "amount": "6朵"},
                 {"name": "北豆腐", "amount": "300g"},
@@ -301,86 +265,69 @@ def render_recipes():
     set_page_style()
     recipes = get_core_recipes()
     
-    st.markdown('<h1 class="main-header">🍳 10道核心菜谱助手</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">简单食材 · 精准做法 · 营养搭配</p>', unsafe_allow_html=True)
-    
-    st.info(f"💡 当前共有 {len(recipes)} 道核心菜谱，涵盖多种烹饪方式")
+    st.title("🍳 10道核心菜谱（精准分类版）")
     
     # 侧边栏筛选
     with st.sidebar:
-        st.header("🔍 筛选条件")
-        
-        # 系列筛选
-        st.subheader("菜品系列")
-        series_options = ["全部", "土豆猪肉系列", "番茄鸡蛋系列", "豆腐香菇系列"]
-        selected_series = st.selectbox("选择菜品系列", series_options)
-                # 烹饪类型筛选
-        st.subheader("烹饪类型")
-        cook_types = set([data["category"] for data in recipes.values()])
-        type_options = ["全部"] + sorted(list(cook_types))
-        selected_type = st.selectbox("选择烹饪类型", type_options)
-        
-        # 烹饪时间筛选
-        st.subheader("烹饪时间")
-        time_filter = st.slider("最大烹饪时间（分钟）", 15, 60, 60)
-        
-        # 食材搜索
-        st.subheader("食材搜索")
-        search_ingredient = st.text_input("输入食材名称（如：土豆、鸡蛋）")
-        
-        # 重置按钮
-        if st.button("🔄 重置筛选条件"):
-            st.rerun()
+        st.subheader("🔍 筛选条件")
+        category = st.selectbox(
+            "选择菜品系列",
+            ["全部", "土豆猪肉", "番茄鸡蛋", "豆腐香菇"]
+        )
+        cook_type = st.selectbox(
+            "选择烹饪类型",
+            ["全部", "炒菜", "粥类", "汤类", "饭类", "蒸菜", "汤羹"]
+        )
     
     # 筛选逻辑
     filtered_recipes = []
     for name, data in recipes.items():
         # 系列筛选
-        series_flag = True
-        if selected_series == "土豆猪肉系列":
-            series_flag = ("土豆" in name) and ("猪肉" in name)
-        elif selected_series == "番茄鸡蛋系列":
-            series_flag = ("番茄" in name) and ("鸡蛋" in name)
-        elif selected_series == "豆腐香菇系列":
-            series_flag = ("豆腐" in name) and ("香菇" in name)
-        
-        # 类型筛选
-        type_flag = (selected_type == "全部") or (data["category"] == selected_type)
-        
-        # 时间筛选
-        time_str = data["time"]
-        time_minutes = int(''.join(filter(str.isdigit, time_str)) or 60)
-        time_flag = time_minutes <= time_filter
-        
-        # 食材搜索筛选
-        search_flag = True
-        if search_ingredient:
-            search_flag = False
-            if search_ingredient in name:
-                search_flag = True
-            for ing in data["ingredients"]:
-                if search_ingredient in ing["name"]:
-                    search_flag = True
-                    break
-        
-        if series_flag and type_flag and time_flag and search_flag:
-            filtered_recipes.append((name, data))
+        if category == "土豆猪肉" and not name.startswith("土豆"):
+            continue
+        elif category == "番茄鸡蛋" and not ("番茄" in name and "鸡蛋" in name):
+            continue
+        elif category == "豆腐香菇" and not ("豆腐" in name and "香菇" in name):
+            continue
+        # 烹饪类型筛选
+        if cook_type != "全部" and data["category"] != cook_type:
+            continue
+        filtered_recipes.append((name, data))
     
-    # 显示筛选结果
-    st.markdown(f'<h2 style="color:#333; margin:20px 0;">📋 筛选结果 ({len(filtered_recipes)}道)</h2>', unsafe_allow_html=True)
-    
+    # 纵向单列渲染折叠卡片
     if filtered_recipes:
-        # 每个菜品单独一行
         for idx, (name, data) in enumerate(filtered_recipes, 1):
-            with st.container():
-                st.markdown('<div class="recipe-card">', unsafe_allow_html=True)
+            with st.expander(f"{idx}. {name} | {data['category']} | {data['time']}", expanded=False):
+                # 菜品图片
+                st.image(data["img_url"], caption=name, use_column_width=True)
                 
-                # 左侧图片，右侧基本信息
-                col1, col2 = st.columns([1, 2])
-                
+                # 分栏展示信息
+                col1, col2 = st.columns(2)
                 with col1:
-                    st.image(data["img_url"], use_column_width=True)
+                    st.markdown("### 🥗 食材清单")
+                    for ing in data["ingredients"]:
+                        st.write(f"- **{ing['name']}**：{ing['amount']}")
+                    
+                    st.markdown("### 💡 烹饪小贴士")
+                    for tip in data["tips"]:
+                        st.markdown(f"<span class='tip-text'>{tip}</span>", unsafe_allow_html=True)
                 
                 with col2:
-                    st.markdown(f'<h3 class="recipe-name">{name}</h3>', unsafe_allow_html=True)
-                    st.markdown(f'<p class="recipe-info">⏱️ {data["time"]} 
+                    st.markdown("### 👨‍🍳 制作步骤")
+                    for i, step in enumerate(data["steps"], 1):
+                        st.write(f"{i}. {step}")
+                    
+                    st.markdown("### 📊 营养参考")
+                    for k, v in data["nutrition"].items():
+                        st.markdown(f"<span class='nutri-text'>{k}：{v}</span>", unsafe_allow_html=True)
+    else:
+        st.warning("⚠️ 未找到符合条件的菜谱，请调整筛选条件")
+
+    # ========== 补充团队成员信息 ==========
+    st.markdown("---")
+    st.markdown("<p class='team-text'>👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫</p >", unsafe_allow_html=True)
+    st.markdown("<p class='team-text'>《人工智能通识》大作业 - 智能美食推荐系统</p >", unsafe_allow_html=True)
+
+# ====================== 主函数 ======================
+if __name__ == "__main__":
+    render_recipes()
