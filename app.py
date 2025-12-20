@@ -1,12 +1,14 @@
 import streamlit as st
+import requests
+import time
+import json
+import re
 
-# ========== 页面配置 ==========
+# ========== 页面基础配置 ==========
 st.set_page_config(page_title="全能厨神助手", page_icon="🍳", layout="wide")
 
-# ========== 菜谱数据库（总计40道菜，新增28道已标注） ==========
+# ========== 核心：40道菜谱完整数据库 ==========
 RECIPES = {
-    # ========== 原有基础菜（12道） ==========
-    # 汤类
     "番茄鸡蛋汤": {
         "category": "汤类",
         "time": "15分钟",
@@ -35,7 +37,6 @@ RECIPES = {
         "nutrition": "热量280大卡 | 钙质丰富",
         "tips": "焯水用冷水下锅"
     },
-    # 粥类
     "皮蛋瘦肉粥": {
         "category": "粥类",
         "time": "60分钟",
@@ -63,7 +64,6 @@ RECIPES = {
         "nutrition": "热量180大卡 | 养胃",
         "tips": "选老南瓜更甜"
     },
-    # 饭类
     "番茄炒饭": {
         "category": "饭类",
         "time": "20分钟",
@@ -78,7 +78,6 @@ RECIPES = {
         "nutrition": "热量350大卡 | 碳水充足",
         "tips": "用隔夜饭更粒粒分明"
     },
-    # 炒菜类
     "番茄炒蛋": {
         "category": "炒菜",
         "time": "15分钟",
@@ -121,7 +120,6 @@ RECIPES = {
         "nutrition": "热量380大卡 | 下饭神器",
         "tips": "土豆后放更软糯"
     },
-    # 蔬菜泥类
     "胡萝卜泥": {
         "category": "蔬菜泥",
         "time": "30分钟",
@@ -148,7 +146,6 @@ RECIPES = {
         "nutrition": "热量180大卡 | 铁质丰富",
         "tips": "菠菜焯水去除草酸"
     },
-    # 水果泥类
     "苹果泥": {
         "category": "水果泥",
         "time": "25分钟",
@@ -174,8 +171,6 @@ RECIPES = {
         "nutrition": "热量250大卡 | 健康脂肪",
         "tips": "牛油果选熟透的"
     },
-
-    # ========== 豆腐香菇专属菜（3道） ==========
     "香菇豆腐焖饭": {
         "category": "饭类",
         "time": "40分钟",
@@ -218,8 +213,6 @@ RECIPES = {
         "nutrition": "热量150大卡 | 低脂高纤维",
         "tips": "豆腐煎定型再翻炒"
     },
-
-    # ========== 无冲突基础菜（2道） ==========
     "虾仁西兰花炒百合": {
         "category": "炒菜",
         "time": "15分钟",
@@ -248,10 +241,7 @@ RECIPES = {
         "nutrition": "热量200大卡 | 滋阴润燥",
         "tips": "银耳煮至出胶口感更好"
     },
-
-    # ========== 新增28道菜（完全避开6种原料：番茄/鸡蛋/土豆/猪肉/豆腐/香菇） ==========
-    # 汤类（新增5道）
-    "冬瓜海带排骨汤": {  # 新增1
+    "冬瓜海带排骨汤": {
         "category": "汤类",
         "time": "80分钟",
         "ingredients": [
@@ -265,7 +255,7 @@ RECIPES = {
         "nutrition": "热量220大卡 | 补碘补钙",
         "tips": "冬瓜最后放，避免煮烂"
     },
-    "山药鸽子汤": {  # 新增2
+    "山药鸽子汤": {
         "category": "汤类",
         "time": "120分钟",
         "ingredients": [
@@ -279,7 +269,7 @@ RECIPES = {
         "nutrition": "热量350大卡 | 补气养血",
         "tips": "山药去皮戴手套，避免过敏"
     },
-    "丝瓜鸡蛋汤": {  # 新增3（注：鸡蛋是原有基础菜原料，此处保留但新增其他无蛋汤）
+    "丝瓜鸡蛋汤": {
         "category": "汤类",
         "time": "15分钟",
         "ingredients": [
@@ -293,7 +283,7 @@ RECIPES = {
         "nutrition": "热量110大卡 | 清热解暑",
         "tips": "丝瓜别煮太久，保持脆嫩"
     },
-    "莲藕花生猪骨汤": {  # 新增4
+    "莲藕花生猪骨汤": {
         "category": "汤类",
         "time": "100分钟",
         "ingredients": [
@@ -307,7 +297,7 @@ RECIPES = {
         "nutrition": "热量290大卡 | 健脾养胃",
         "tips": "莲藕选粉藕，炖出来更绵"
     },
-    "紫菜蛋花汤": {  # 新增5
+    "紫菜蛋花汤": {
         "category": "汤类",
         "time": "10分钟",
         "ingredients": [
@@ -321,9 +311,7 @@ RECIPES = {
         "nutrition": "热量80大卡 | 补碘补铁",
         "tips": "蛋液淋入时搅拌，蛋花更均匀"
     },
-
-    # 粥类（新增4道）
-    "燕麦红枣粥": {  # 新增6
+    "燕麦红枣粥": {
         "category": "粥类",
         "time": "30分钟",
         "ingredients": [
@@ -337,7 +325,7 @@ RECIPES = {
         "nutrition": "热量190大卡 | 补血安神",
         "tips": "燕麦选纯燕麦，口感更稠"
     },
-    "绿豆百合粥": {  # 新增7
+    "绿豆百合粥": {
         "category": "粥类",
         "time": "60分钟",
         "ingredients": [
@@ -351,7 +339,7 @@ RECIPES = {
         "nutrition": "热量170大卡 | 清热降火",
         "tips": "绿豆泡发后煮更快软烂"
     },
-    "山药小米粥": {  # 新增8
+    "山药小米粥": {
         "category": "粥类",
         "time": "40分钟",
         "ingredients": [
@@ -365,7 +353,7 @@ RECIPES = {
         "nutrition": "热量160大卡 | 健脾养胃",
         "tips": "山药丁切小，更容易煮烂"
     },
-    "黑米粥": {  # 新增9
+    "黑米粥": {
         "category": "粥类",
         "time": "90分钟",
         "ingredients": [
@@ -379,9 +367,7 @@ RECIPES = {
         "nutrition": "热量280大卡 | 补肾益脑",
         "tips": "黑米难煮，浸泡时间要足够"
     },
-
-    # 饭类（新增4道）
-    "腊肠煲仔饭": {  # 新增10
+    "腊肠煲仔饭": {
         "category": "饭类",
         "time": "50分钟",
         "ingredients": [
@@ -395,7 +381,7 @@ RECIPES = {
         "nutrition": "热量380大卡 | 咸香入味",
         "tips": "煮饭水量比平时少，避免软烂"
     },
-    "咖喱鸡肉饭": {  # 新增11
+    "咖喱鸡肉饭": {
         "category": "饭类",
         "time": "40分钟",
         "ingredients": [
@@ -409,7 +395,7 @@ RECIPES = {
         "nutrition": "热量420大卡 | 浓郁鲜香",
         "tips": "咖喱块煮至融化即可，别煮太久"
     },
-    "菠萝炒饭": {  # 新增12
+    "菠萝炒饭": {
         "category": "饭类",
         "time": "25分钟",
         "ingredients": [
@@ -423,7 +409,7 @@ RECIPES = {
         "nutrition": "热量360大卡 | 酸甜开胃",
         "tips": "菠萝最后放，避免炒软"
     },
-    "豆角焖饭": {  # 新增13
+    "豆角焖饭": {
         "category": "饭类",
         "time": "45分钟",
         "ingredients": [
@@ -437,9 +423,7 @@ RECIPES = {
         "nutrition": "热量390大卡 | 咸香下饭",
         "tips": "豆角要炒熟，避免中毒"
     },
-
-    # 炒菜类（新增8道）
-    "清炒西兰花": {  # 新增14
+    "清炒西兰花": {
         "category": "炒菜",
         "time": "10分钟",
         "ingredients": [
@@ -453,7 +437,7 @@ RECIPES = {
         "nutrition": "热量70大卡 | 富含膳食纤维",
         "tips": "焯水加少许盐，西兰花更绿"
     },
-    "蒜蓉娃娃菜": {  # 新增15
+    "蒜蓉娃娃菜": {
         "category": "炒菜",
         "time": "10分钟",
         "ingredients": [
@@ -467,7 +451,7 @@ RECIPES = {
         "nutrition": "热量60大卡 | 清爽解腻",
         "tips": "娃娃菜炒软即可，保留水分"
     },
-    "青椒炒鸡腿肉": {  # 新增16
+    "青椒炒鸡腿肉": {
         "category": "炒菜",
         "time": "15分钟",
         "ingredients": [
@@ -481,7 +465,7 @@ RECIPES = {
         "nutrition": "热量250大卡 | 低脂高蛋白",
         "tips": "鸡腿肉别炒太久，避免柴硬"
     },
-    "清炒荷兰豆": {  # 新增17
+    "清炒荷兰豆": {
         "category": "炒菜",
         "time": "8分钟",
         "ingredients": [
@@ -495,7 +479,7 @@ RECIPES = {
         "nutrition": "热量80大卡 | 脆嫩爽口",
         "tips": "荷兰豆炒至断生即可，别炒老"
     },
-    "蒜蓉蒸虾": {  # 新增18
+    "蒜蓉蒸虾": {
         "category": "炒菜",
         "time": "15分钟",
         "ingredients": [
@@ -509,7 +493,7 @@ RECIPES = {
         "nutrition": "热量220大卡 | 鲜香味美",
         "tips": "蒸制时间别超8分钟，虾老影响口感"
     },
-    "红烧鸡翅": {  # 新增19
+    "红烧鸡翅": {
         "category": "炒菜",
         "time": "30分钟",
         "ingredients": [
@@ -523,7 +507,7 @@ RECIPES = {
         "nutrition": "热量380大卡 | 咸甜入味",
         "tips": "炒糖色小火，避免糊锅发苦"
     },
-    "清炒秋葵": {  # 新增20
+    "清炒秋葵": {
         "category": "炒菜",
         "time": "10分钟",
         "ingredients": [
@@ -537,7 +521,7 @@ RECIPES = {
         "nutrition": "热量70大卡 | 富含黏蛋白",
         "tips": "秋葵焯水去涩，口感更好"
     },
-    "西芹炒腰果": {  # 新增21
+    "西芹炒腰果": {
         "category": "炒菜",
         "time": "12分钟",
         "ingredients": [
@@ -551,9 +535,7 @@ RECIPES = {
         "nutrition": "热量180大卡 | 脆嫩香甜",
         "tips": "腰果别炒太久，避免焦糊"
     },
-
-    # 甜点/泥类（新增5道）
-    "芒果西米露": {  # 新增22
+    "芒果西米露": {
         "category": "甜点",
         "time": "40分钟",
         "ingredients": [
@@ -567,7 +549,7 @@ RECIPES = {
         "nutrition": "热量210大卡 | 香甜解暑",
         "tips": "西米煮好后过凉水，更Q弹"
     },
-    "椰汁芋圆": {  # 新增23
+    "椰汁芋圆": {
         "category": "甜点",
         "time": "60分钟",
         "ingredients": [
@@ -581,7 +563,7 @@ RECIPES = {
         "nutrition": "热量280大卡 | Q弹香甜",
         "tips": "木薯粉分次加，避免太干"
     },
-    "草莓奶昔": {  # 新增24
+    "草莓奶昔": {
         "category": "甜点",
         "time": "5分钟",
         "ingredients": [
@@ -595,7 +577,7 @@ RECIPES = {
         "nutrition": "热量120大卡 | 酸甜可口",
         "tips": "冰块可省略，口感更绵密"
     },
-    "蓝莓山药泥": {  # 新增25
+    "蓝莓山药泥": {
         "category": "蔬菜泥",
         "time": "20分钟",
         "ingredients": [
@@ -609,7 +591,7 @@ RECIPES = {
         "nutrition": "热量150大卡 | 绵密香甜",
         "tips": "山药泥过筛，口感更细腻"
     },
-    "芒果布丁": {  # 新增26（原有基础菜，此处补充完整）
+    "芒果布丁": {
         "category": "甜点",
         "time": "180分钟（含冷藏）",
         "ingredients": [
@@ -623,7 +605,7 @@ RECIPES = {
         "nutrition": "热量280大卡 | 甜品适量",
         "tips": "冷藏时间要足够，布丁才会凝固"
     },
-    "木瓜炖雪蛤": {  # 新增27
+    "木瓜炖雪蛤": {
         "category": "甜点",
         "time": "90分钟",
         "ingredients": [
@@ -637,7 +619,7 @@ RECIPES = {
         "nutrition": "热量180大卡 | 滋阴养颜",
         "tips": "雪蛤泡发要彻底，去除黑线"
     },
-    "银耳莲子羹": {  # 新增28
+    "银耳莲子羹": {
         "category": "甜点",
         "time": "120分钟",
         "ingredients": [
@@ -651,8 +633,6 @@ RECIPES = {
         "nutrition": "热量220大卡 | 润肺止咳",
         "tips": "银耳煮至出胶，口感更好"
     },
-
-    # ========== 补充土豆猪肉系列剩余2道（凑齐原有基础） ==========
     "土豆猪肉粥": {
         "category": "粥类",
         "time": "50分钟",
@@ -683,8 +663,110 @@ RECIPES = {
     }
 }
 
-# ========== 食材识别逻辑（支持连写/空格） ==========
+# ========== 百度千帆API核心函数 ==========
+def get_access_token(access_key_id, access_key_secret):
+    """获取百度千帆Access Token"""
+    url = "https://aip.baidubce.com/oauth/2.0/token"
+    params = {
+        "grant_type": "client_credentials",
+        "client_id": access_key_id,
+        "client_secret": access_key_secret
+    }
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        if "access_token" in result:
+            return result["access_token"]
+        else:
+            st.error(f"获取Token失败：{result.get('error_description', '未知错误')}")
+            return None
+    except requests.exceptions.RequestException as e:
+        st.error(f"网络请求失败：{str(e)}")
+        return None
+    except json.JSONDecodeError:
+        st.error("Token接口返回非JSON数据")
+        return None
+
+def generate_recipe_image(recipe_name, ingredients, access_token):
+    """生成菜谱AI配图"""
+    ingredients_text = ", ".join([ing["name"] for ing in ingredients[:5]])
+    prompt = f"家常菜{recipe_name}，写实风格，高清，512x512，餐桌场景，无水印，包含食材：{ingredients_text}"
+    
+    url = f"https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/image/ernievilg?access_token={access_token}"
+    payload = json.dumps({
+        "text": prompt,
+        "resolution": "512x512",
+        "version": "v1",
+        "num": 1
+    })
+    headers = {"Content-Type": "application/json"}
+    
+    max_retries = 2
+    for retry in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, data=payload, timeout=20)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("error_code"):
+                if retry < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                st.warning(f"图片生成失败【{result['error_code']}】：{result['error_msg']}")
+                return None
+            
+            task_id = result.get("data", {}).get("taskId")
+            if not task_id:
+                if retry < max_retries - 1:
+                    time.sleep(1)
+                    continue
+                st.warning("未获取到生成任务ID")
+                return None
+            
+            query_url = f"https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/image/ernievilg/getImg?access_token={access_token}"
+            for _ in range(10):
+                time.sleep(1)
+                query_payload = json.dumps({"taskId": task_id})
+                query_res = requests.post(query_url, headers=headers, data=query_payload, timeout=10)
+                query_result = query_res.json()
+                
+                if query_result.get("error_code"):
+                    continue
+                
+                status = query_result.get("data", {}).get("status")
+                if status == "SUCCESS":
+                    return query_result["data"]["img"][0]
+                elif status == "FAILED":
+                    break
+            
+            if retry < max_retries - 1:
+                time.sleep(1)
+                continue
+            st.warning("图片生成超时")
+            return None
+            
+        except requests.exceptions.RequestException as e:
+            if retry < max_retries - 1:
+                time.sleep(1)
+                continue
+            st.warning(f"图片生成网络异常：{str(e)}")
+            return None
+        except json.JSONDecodeError:
+            if retry < max_retries - 1:
+                time.sleep(1)
+                continue
+            st.warning("图片接口返回非JSON数据")
+            return None
+    
+    return None
+
+# ========== 辅助函数 ==========
 def recognize_ingredients(text):
+    """识别输入中的食材关键词"""
+    if not text or text.strip() == "":
+        return []
+    
     text_lower = text.strip().lower()
     ingredient_keywords = {
         "豆腐": ["豆腐"],
@@ -696,106 +778,157 @@ def recognize_ingredients(text):
         "虾仁": ["虾仁"],
         "紫薯": ["紫薯"]
     }
-    
+
     recognized = []
     for ing, keywords in ingredient_keywords.items():
         for kw in keywords:
             if kw in text_lower:
                 recognized.append(ing)
                 break
-    
     return list(set(recognized))
 
-# ========== 界面部分 ==========
-st.title("🍳 全能厨神助手")
-st.markdown("### 涵盖汤、粥、饭、菜、蔬菜泥、水果泥、甜点等40道丰富菜谱")
+def extract_cook_time(time_str):
+    """提取制作时间的数字部分"""
+    if not time_str:
+        return 180
+    numbers = re.findall(r'\d+', time_str)
+    if numbers:
+        return int(numbers[0])
+    return 180
 
-# 侧边栏
+# ========== 侧边栏UI（添加友好提示） ==========
 with st.sidebar:
+    st.header("🔑 百度千帆AI配图配置")
+    # 大作业专属友好提示
+    st.info("💡 填写自己的百度千帆Access Key即可生成AI配图，不填仅查看菜谱文字内容")
+    
+    access_key_id = st.text_input(
+        "Access Key ID", 
+        placeholder="请输入你的百度千帆Access Key ID",
+        type="password"
+    )
+    access_key_secret = st.text_input(
+        "Access Key Secret", 
+        placeholder="请输入你的百度千帆Access Key Secret",
+        type="password"
+    )
+    enable_ai_image = st.checkbox("开启AI配图", value=True)
+
+    st.divider()
     st.header("🥦 食材输入")
     user_input = st.text_input("输入食材（如：番茄鸡蛋/豆腐香菇）", "豆腐香菇")
-    
+
     st.header("🍽️ 菜谱类型")
     categories = ["汤类", "粥类", "饭类", "炒菜", "蔬菜泥", "水果泥", "甜点", "全部"]
     selected_cats = st.multiselect("选择类型", categories, default=["全部"])
-    
+
     st.header("⏱️ 时间要求")
     max_time = st.slider("最大制作时间（分钟）", 10, 180, 60)
-    
+
     generate = st.button("🔍 智能推荐菜谱", type="primary", use_container_width=True)
 
-# ========== 筛选逻辑 ==========
+# ========== 菜谱筛选与展示 ==========
 if generate:
     recognized = recognize_ingredients(user_input)
-    
     if recognized:
         st.success(f"✅ 识别到食材: {', '.join(recognized)}")
-        
+
+        # 初始化Token
+        access_token = None
+        if enable_ai_image and access_key_id and access_key_secret:
+            with st.spinner("正在验证API密钥..."):
+                access_token = get_access_token(access_key_id, access_key_secret)
+            if not access_token:
+                st.warning("⚠️ API密钥验证失败，请检查Key和Secret是否正确")
+
+        # 筛选菜谱
         filtered_recipes = []
         for name, recipe in RECIPES.items():
-            # 时间筛选
-            try:
-                time_min = int(''.join([c for c in recipe['time'] if c.isdigit()]))
-            except:
-                time_min = 180
-            
+            time_min = extract_cook_time(recipe.get("time", ""))
             if time_min > max_time:
                 continue
-            
-            # 类型筛选
-            if "全部" not in selected_cats and recipe['category'] not in selected_cats:
+
+            recipe_cat = recipe.get("category", "")
+            if "全部" not in selected_cats and recipe_cat not in selected_cats:
                 continue
-            
-            # 食材匹配
-            recipe_ings = [i['name'] for i in recipe['ingredients']]
+
+            recipe_ings = [i["name"] for i in recipe.get("ingredients", [])]
             if any(ing in recipe_ings for ing in recognized):
-                # 番茄鸡蛋特殊限制
                 if set(recognized) == {'番茄', '鸡蛋'}:
                     if name in ["番茄鸡蛋汤", "番茄炒饭", "番茄炒蛋"]:
                         filtered_recipes.append((name, recipe))
-                # 土豆猪肉特殊限制
                 elif set(recognized) == {'土豆', '猪肉'}:
                     if name not in ["菠菜土豆泥"]:
                         filtered_recipes.append((name, recipe))
-                # 其他食材正常匹配
                 else:
                     filtered_recipes.append((name, recipe))
-        
+
         # 显示结果
         if filtered_recipes:
             st.markdown(f"## 🎉 为您推荐 {len(filtered_recipes)} 个菜谱")
-            
+
+            @st.cache_data(ttl=86400, show_spinner=False)
+            def cached_image(recipe_name, ingredients):
+                if not access_token:
+                    return None
+                return generate_recipe_image(recipe_name, ingredients, access_token)
+
             for name, recipe in filtered_recipes:
-                with st.expander(f"🍽️ {name} ({recipe['category']} | {recipe['time']})", expanded=False):
+                with st.expander(f"🍽️ {name} ({recipe.get('category', '')} | {recipe.get('time', '')})", expanded=False):
+                    # 显示AI图片
+                    if enable_ai_image and access_token:
+                        with st.spinner(f"正在生成「{name}」的AI配图..."):
+                            image_url = cached_image(name, recipe.get("ingredients", []))
+                            if image_url:
+                                st.image(
+                                    image_url, 
+                                    caption=f"{name} - AI智能配图", 
+                                    width=400,
+                                    use_column_width=False
+                                )
+                            else:
+                                st.info("📷 暂无AI配图（生成失败/超时）")
+                    else:
+                        if not enable_ai_image:
+                            st.info("📷 已关闭AI配图功能")
+                        else:
+                            st.info("📷 请先填写百度千帆API密钥以启用AI配图")
+
                     # 食材清单
                     st.markdown("**🥗 食材清单**")
-                    cols = st.columns(3)
-                    for idx, ing in enumerate(recipe['ingredients']):
-                        with cols[idx % 3]:
-                            st.markdown(f"**{ing['name']}**")
-                            st.markdown(f"`{ing['amount']}`")
-                    
+                    ingredients = recipe.get("ingredients", [])
+                    if ingredients:
+                        cols = st.columns(3)
+                        for idx, ing in enumerate(ingredients):
+                            with cols[idx % 3]:
+                                st.markdown(f"**{ing.get('name', '')}**")
+                                st.markdown(f"`{ing.get('amount', '')}`")
+                    else:
+                        st.markdown("暂无食材信息")
+
                     # 制作步骤
                     st.markdown("**👨‍🍳 制作步骤**")
-                    st.text(recipe['steps'])
-                    
+                    steps = recipe.get("steps", "暂无步骤信息")
+                    st.text(steps)
+
                     # 替代食材
-                    if recipe.get('alternatives'):
+                    alternatives = recipe.get("alternatives")
+                    if alternatives:
                         st.markdown("**🔄 替代食材**")
-                        st.text(recipe['alternatives'])
-                    
+                        st.text(alternatives)
+
                     # 营养+小贴士
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.info(f"营养：{recipe['nutrition']}")
+                        st.info(f"营养：{recipe.get('nutrition', '暂无营养信息')}")
                     with col2:
-                        st.success(f"小贴士：{recipe['tips']}")
+                        st.success(f"小贴士：{recipe.get('tips', '暂无小贴士')}")
         else:
             st.warning("⚠️ 未找到匹配的菜谱，请调整筛选条件！")
     else:
         st.error("❌ 未识别到有效食材！请输入：番茄鸡蛋、豆腐香菇、土豆猪肉等")
 
-# 团队信息
+# ========== 团队信息 ==========
 st.markdown("---")
 st.markdown("**👨‍🎓 项目团队: 刘蕊琪、戚洋洋、王佳慧、覃丽娜、欧婷、贺钰鑫**")
 st.caption("《人工智能通识》大作业 - 智能美食推荐系统")
