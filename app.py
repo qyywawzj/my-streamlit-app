@@ -126,7 +126,7 @@ def get_core_recipes():
             "tips": ["加热水防肉质变柴", "土豆晚放，避免煮烂"],
             "nutrition": {"热量": "380大卡", "蛋白质": "18g", "碳水": "25g"}
         },
-        "土豆猪肉粥": {
+                "土豆猪肉粥": {
             "category": "粥类",
             "time": "50分钟",
             "img_url": "https://images.unsplash.com/photo-1563245372-f21724e3856d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
@@ -314,8 +314,7 @@ def render_recipes():
         st.subheader("菜品系列")
         series_options = ["全部", "土豆猪肉系列", "番茄鸡蛋系列", "豆腐香菇系列"]
         selected_series = st.selectbox("选择菜品系列", series_options)
-        
-        # 烹饪类型筛选
+                # 烹饪类型筛选
         st.subheader("烹饪类型")
         cook_types = set([data["category"] for data in recipes.values()])
         type_options = ["全部"] + sorted(list(cook_types))
@@ -385,87 +384,3 @@ def render_recipes():
                 with col2:
                     st.markdown(f'<h3 class="recipe-name">{name}</h3>', unsafe_allow_html=True)
                     st.markdown(f'<p class="recipe-info">⏱️ {data["time"]} 
-                    # 查看详细做法按钮
-                    if st.button(f"查看详细做法", key=f"view_{name}", use_container_width=True):
-                        st.session_state[f"show_{name}"] = not st.session_state.get(f"show_{name}", False)
-                                    # 详细做法展开区域
-                if st.session_state.get(f"show_{name}", False):
-                    with st.expander("", expanded=True):
-                        col_a, col_b = st.columns(2)
-                        
-                        with col_a:
-                            st.markdown("**🥗 食材清单**")
-                            for ing in data["ingredients"]:
-                                st.markdown(f"- {ing['name']}: {ing['amount']}")
-                            
-                            st.markdown("**💡 烹饪小贴士**")
-                            for tip in data["tips"]:
-                                st.markdown(f"<span class='tip-text'>- {tip}</span>", unsafe_allow_html=True)
-                        
-                        with col_b:
-                            st.markdown("**👨‍🍳 制作步骤**")
-                            for i, step in enumerate(data["steps"], 1):
-                                st.markdown(f"{i}. {step}")
-                            
-                            st.markdown("**📊 营养参考**")
-                            for k, v in data["nutrition"].items():
-                                st.markdown(f"<span class='nutri-text'>{k}：{v}</span>", unsafe_allow_html=True)
-                
-                st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ 未找到符合条件的菜谱，请调整筛选条件")
-        st.image("https://images.unsplash.com/photo-1547592180-85f173990554?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=60", 
-                caption="尝试调整筛选条件发现更多美味", use_column_width=True)
-    
-    # 实用功能区域
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🎲 随机推荐"):
-            if recipes:
-                import random
-                random_name = random.choice(list(recipes.keys()))
-                st.success(f"今日推荐：**{random_name}**")
-                st.info(f"烹饪时间：{recipes[random_name]['time']}")
-    
-    with col2:
-        if st.button("📋 今日菜单"):
-            if len(recipes) >= 3:
-                menu = list(recipes.keys())[:3]
-                st.success("今日菜单建议：")
-                for dish in menu:
-                    st.write(f"- {dish}")
-    
-    with col3:
-        if st.button("🛒 生成购物清单"):
-            if filtered_recipes:
-                st.success("购物清单已生成（基于筛选结果）")
-                ingredients_dict = {}
-                for name, data in filtered_recipes:
-                    for ing in data["ingredients"]:
-                        if ing["name"] not in ingredients_dict:
-                            ingredients_dict[ing["name"]] = ing["amount"]
-                        else:
-                            ingredients_dict[ing["name"]] = f"{ingredients_dict[ing['name']]}+{ing['amount']}"
-                
-                for item, amount in ingredients_dict.items():
-                    st.write(f"- {item}: {amount}")
-    
-    # 团队成员信息
-    st.markdown('<div class="team-section">', unsafe_allow_html=True)
-    st.markdown('<h3 class="team-header">👨‍🎓 项目团队</h3>', unsafe_allow_html=True)
-    
-    team_cols = st.columns(6)
-    team_members = ["刘蕊琪", "戚洋洋", "王佳慧", "覃丽娜", "欧婷", "贺钰鑫"]
-    
-    for i, member in enumerate(team_members):
-        with team_cols[i]:
-            st.markdown(f'<div class="team-member">{member}</div>', unsafe_allow_html=True)
-    
-    st.markdown('<p class="course-info">《人工智能通识》大作业 - 智能美食推荐系统</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ====================== 主函数 ======================
-if __name__ == "__main__":
-    render_recipes()
